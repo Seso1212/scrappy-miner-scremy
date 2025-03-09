@@ -1,8 +1,13 @@
 
 import React from 'react';
-import { Gem, Trophy, Zap, Clock } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { formatNumber, formatTime } from '@/lib/miningUtils';
+import { 
+  Bitcoin, 
+  Clock, 
+  BarChart3, 
+  TrendingUp,
+  Award
+} from 'lucide-react';
+import { formatNumber, formatTime, MAX_MINING_TIME } from '@/lib/miningUtils';
 
 interface StatsDisplayProps {
   balance: number;
@@ -10,7 +15,8 @@ interface StatsDisplayProps {
   totalAttempts: number;
   difficulty: number;
   activeMiningTime: number;
-  className?: string;
+  level?: number;
+  autoMining?: boolean;
 }
 
 const StatsDisplay: React.FC<StatsDisplayProps> = ({
@@ -19,72 +25,76 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
   totalAttempts,
   difficulty,
   activeMiningTime,
-  className
+  level = 1,
+  autoMining = true
 }) => {
   const successRate = totalAttempts > 0 
-    ? (successfulMines / totalAttempts * 100).toFixed(1) 
+    ? ((successfulMines / totalAttempts) * 100).toFixed(1) 
     : '0.0';
   
+  const miningTimePercentage = (activeMiningTime / MAX_MINING_TIME) * 100;
+  
   return (
-    <div className={cn("grid grid-cols-2 gap-4 md:grid-cols-4", className)}>
-      <div className="glass-card rounded-xl p-4 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
-        <div className="mb-2 flex items-center gap-2">
-          <Gem className="h-5 w-5 text-scremy" strokeWidth={1.5} />
-          <h3 className="text-sm font-medium text-muted-foreground">Balance</h3>
-        </div>
-        <p className="text-2xl font-bold text-balance">
-          {formatNumber(balance)} <span className="text-scremy">SCR</span>
-        </p>
-      </div>
+    <div className="glass-card rounded-xl p-6 shadow-sm">
+      <h2 className="text-xl font-semibold mb-4">Mining Statistics</h2>
       
-      <div className="glass-card rounded-xl p-4 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
-        <div className="mb-2 flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-scremy" strokeWidth={1.5} />
-          <h3 className="text-sm font-medium text-muted-foreground">Success Rate</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Balance */}
+        <div className="glass-card p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-scremy/10 p-2 rounded-full">
+              <Bitcoin className="h-4 w-4 text-scremy" />
+            </div>
+            <h3 className="text-sm font-medium">Balance</h3>
+          </div>
+          <p className="text-2xl font-bold">{balance.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">SCR</p>
         </div>
-        <p className="text-2xl font-bold flex items-end gap-1">
-          {successRate}
-          <span className="text-muted-foreground text-lg">%</span>
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          {successfulMines}/{totalAttempts} blocks mined
-        </p>
-      </div>
-      
-      <div className="glass-card rounded-xl p-4 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
-        <div className="mb-2 flex items-center gap-2">
-          <Zap className="h-5 w-5 text-scremy" strokeWidth={1.5} />
-          <h3 className="text-sm font-medium text-muted-foreground">Difficulty</h3>
+        
+        {/* Success Rate */}
+        <div className="glass-card p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-scremy/10 p-2 rounded-full">
+              <BarChart3 className="h-4 w-4 text-scremy" />
+            </div>
+            <h3 className="text-sm font-medium">Success Rate</h3>
+          </div>
+          <p className="text-2xl font-bold">{successRate}%</p>
+          <p className="text-xs text-muted-foreground">
+            {successfulMines} / {totalAttempts} attempts
+          </p>
         </div>
-        <div className="w-full flex justify-center gap-1 mt-1">
-          {Array.from({ length: 10 }).map((_, i) => (
+        
+        {/* Mining Time */}
+        <div className="glass-card p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-scremy/10 p-2 rounded-full">
+              <Clock className="h-4 w-4 text-scremy" />
+            </div>
+            <h3 className="text-sm font-medium">Mining Time</h3>
+          </div>
+          <p className="text-2xl font-bold">{formatTime(activeMiningTime)}</p>
+          <div className="w-full bg-muted h-1 rounded-full mt-2">
             <div 
-              key={i} 
-              className={cn(
-                "h-4 w-1 rounded-full transition-all",
-                i < difficulty 
-                  ? "bg-scremy" 
-                  : "bg-muted"
-              )}
-            />
-          ))}
+              className="bg-scremy h-1 rounded-full"
+              style={{ width: `${miningTimePercentage}%` }}
+            ></div>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          Level {difficulty} / 10
-        </p>
-      </div>
-      
-      <div className="glass-card rounded-xl p-4 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-md">
-        <div className="mb-2 flex items-center gap-2">
-          <Clock className="h-5 w-5 text-scremy" strokeWidth={1.5} />
-          <h3 className="text-sm font-medium text-muted-foreground">Mining Time</h3>
+        
+        {/* Level */}
+        <div className="glass-card p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="bg-scremy/10 p-2 rounded-full">
+              <Award className="h-4 w-4 text-scremy" />
+            </div>
+            <h3 className="text-sm font-medium">Miner Level</h3>
+          </div>
+          <p className="text-2xl font-bold">{level}</p>
+          <p className="text-xs text-muted-foreground">
+            {autoMining ? "Auto-Mining Enabled" : "Auto-Mining Disabled"}
+          </p>
         </div>
-        <p className="text-2xl font-bold font-mono">
-          {formatTime(activeMiningTime)}
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Active mining time
-        </p>
       </div>
     </div>
   );

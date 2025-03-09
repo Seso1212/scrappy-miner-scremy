@@ -8,17 +8,21 @@ import {
   RefreshCw,
   ChevronUp,
   ChevronDown,
-  Info
+  Info,
+  Repeat
 } from 'lucide-react';
 
 import { 
   calculateMiningProbability, 
   attemptMining, 
   calculateReward, 
-  MINING_DURATION,
-  MAX_MINING_TIME 
+  MAX_MINING_TIME,
+  getRandomMiningDuration,
+  BASE_REWARD,
+  formatLongTime
 } from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
+import { Progress } from "@/components/ui/progress";
 
 interface MiningCardProps {
   onMiningUpdate: (data: {
@@ -32,6 +36,8 @@ interface MiningCardProps {
     totalAttempts: number;
     balance: number;
     activeMiningTime: number;
+    level: number;
+    autoMining: boolean;
   }) => void;
 }
 
@@ -52,11 +58,129 @@ const MiningCard: React.FC<MiningCardProps> = ({
   const [miningTimeout, setMiningTimeout] = useState<number | null>(null);
   const [timeInterval, setTimeInterval] = useState<number | null>(null);
   const [isMiningComplete, setIsMiningComplete] = useState(false);
+  const [autoMining, setAutoMining] = useState(true);
+  const [level, setLevel] = useState(1);
+  const [progress, setProgress] = useState(0);
+  const [taskCompleted, setTaskCompleted] = useState(0);
+  const [currentTask, setCurrentTask] = useState("");
+  const [miningDuration, setMiningDuration] = useState(30000); // Default duration
+  const [progressTimer, setProgressTimer] = useState<number | null>(null);
+  const [progressValue, setProgressValue] = useState(0);
 
   // Mining info
   const probability = calculateMiningProbability(difficulty);
   const successProbability = Math.floor(probability * 100);
   const reward = calculateReward(difficulty);
+  const levelReward = BASE_REWARD * level;
+
+  // Tasks for level progression
+  const tasks = [
+    "Mine 5 blocks successfully",
+    "Mine at difficulty 7 or higher",
+    "Achieve 10 successful mines",
+    "Mine with 75% success rate",
+    "Maintain auto-mining for 30 minutes",
+    "Mine 20 blocks successfully",
+    "Mine at difficulty 10",
+    "Achieve 50 successful mines",
+    "Mine with 90% success rate",
+    "Complete 24 hours of mining"
+  ];
+
+  // Update current task based on level
+  useEffect(() => {
+    if (level <= 10) {
+      setCurrentTask(tasks[level - 1]);
+      setProgress(0);
+      setTaskCompleted(0);
+    }
+  }, [level]);
+
+  // Check task completion
+  const checkTaskCompletion = () => {
+    let completed = 0;
+    const successRate = totalAttempts > 0 ? (successfulMines / totalAttempts) * 100 : 0;
+    
+    // Check which task is complete based on level
+    switch(level) {
+      case 1:
+        completed = Math.min(successfulMines / 5, 1);
+        if (successfulMines >= 5) {
+          levelUp();
+        }
+        break;
+      case 2:
+        if (difficulty >= 7) {
+          completed = 1;
+          levelUp();
+        }
+        break;
+      case 3:
+        completed = Math.min(successfulMines / 10, 1);
+        if (successfulMines >= 10) {
+          levelUp();
+        }
+        break;
+      case 4:
+        completed = Math.min(successRate / 75, 1);
+        if (successRate >= 75 && totalAttempts >= 4) {
+          levelUp();
+        }
+        break;
+      case 5:
+        completed = Math.min(activeMiningTime / (30 * 60), 1);
+        if (activeMiningTime >= 30 * 60) {
+          levelUp();
+        }
+        break;
+      case 6:
+        completed = Math.min(successfulMines / 20, 1);
+        if (successfulMines >= 20) {
+          levelUp();
+        }
+        break;
+      case 7:
+        if (difficulty >= 10) {
+          completed = 1;
+          levelUp();
+        }
+        break;
+      case 8:
+        completed = Math.min(successfulMines / 50, 1);
+        if (successfulMines >= 50) {
+          levelUp();
+        }
+        break;
+      case 9:
+        completed = Math.min(successRate / 90, 1);
+        if (successRate >= 90 && totalAttempts >= 10) {
+          levelUp();
+        }
+        break;
+      case 10:
+        completed = Math.min(activeMiningTime / MAX_MINING_TIME, 1);
+        if (activeMiningTime >= MAX_MINING_TIME) {
+          levelUp();
+        }
+        break;
+    }
+    
+    setProgress(completed);
+    setTaskCompleted(Math.floor(completed * 100));
+  };
+
+  // Level up function
+  const levelUp = () => {
+    if (level < 10) {
+      const newLevel = level + 1;
+      setLevel(newLevel);
+      toast({
+        title: "Level Up!",
+        description: `You've reached level ${newLevel}! New task unlocked.`,
+        duration: 3000,
+      });
+    }
+  };
 
   // Process mining attempt
   const processMiningAttempt = () => {
@@ -64,10 +188,11 @@ const MiningCard: React.FC<MiningCardProps> = ({
     const newTotalAttempts = totalAttempts + 1;
     
     setTotalAttempts(newTotalAttempts);
+    setProgressValue(0);
     
     if (success) {
       const newSuccessfulMines = successfulMines + 1;
-      const miningReward = calculateReward(difficulty);
+      const miningReward = calculateReward(difficulty) + levelReward;
       const newBalance = balance + miningReward;
       
       setSuccessfulMines(newSuccessfulMines);
@@ -81,9 +206,6 @@ const MiningCard: React.FC<MiningCardProps> = ({
         reward: miningReward
       });
       
-      // Reset mining
-      stopMining();
-      
       // Show toast notification
       toast({
         title: "Block Successfully Mined!",
@@ -91,11 +213,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
         duration: 3000,
       });
     } else {
-      // Mining failed, but operation is now complete
-      setIsMiningComplete(true);
-      stopMining();
-      
-      // Notify parent that mining is complete but unsuccessful
+      // Mining failed
       onMiningUpdate({ isMining: false, wasSuccessful: false });
       
       toast({
@@ -105,13 +223,30 @@ const MiningCard: React.FC<MiningCardProps> = ({
       });
     }
     
+    // Check if we should continue auto-mining
+    if (autoMining && activeMiningTime < MAX_MINING_TIME) {
+      setIsMiningComplete(false);
+      // Start the next mining attempt after a short delay
+      setTimeout(() => {
+        startMining();
+      }, 1500);
+    } else {
+      setIsMiningComplete(true);
+      stopMining();
+    }
+    
+    // Check if tasks are completed
+    checkTaskCompletion();
+    
     // Update parent component with current stats
     onStatsUpdate({
       difficulty,
       successfulMines: success ? successfulMines + 1 : successfulMines,
       totalAttempts: newTotalAttempts,
-      balance: success ? balance + reward : balance,
-      activeMiningTime
+      balance: success ? balance + reward + levelReward : balance,
+      activeMiningTime,
+      level,
+      autoMining
     });
   };
 
@@ -123,22 +258,38 @@ const MiningCard: React.FC<MiningCardProps> = ({
     setSuccessfulAnimation(false);
     setIsMiningComplete(false);
     
+    // Generate random duration for this mining attempt (25-35 seconds)
+    const duration = getRandomMiningDuration();
+    setMiningDuration(duration);
+    
     // Notify parent component
     onMiningUpdate({ isMining: true });
     
-    // Set up fixed mining timeout (30 seconds)
+    // Set up mining timeout
     const timeout = window.setTimeout(() => {
       processMiningAttempt();
-    }, MINING_DURATION);
+    }, duration);
     
     setMiningTimeout(timeout);
+    
+    // Set up progress timer
+    const progressUpdate = window.setInterval(() => {
+      setProgressValue(prev => {
+        const newValue = prev + (100 / (duration / 1000));
+        return Math.min(newValue, 100);
+      });
+    }, 1000);
+    
+    setProgressTimer(progressUpdate);
     
     // Set up time tracking interval
     const timeTracker = window.setInterval(() => {
       setActiveMiningTime(prev => {
         // Check if we've reached the maximum mining time
         if (prev >= MAX_MINING_TIME) {
-          stopMining();
+          if (!autoMining) {
+            stopMining();
+          }
           return prev;
         }
         return prev + 1;
@@ -163,8 +314,35 @@ const MiningCard: React.FC<MiningCardProps> = ({
       setTimeInterval(null);
     }
     
+    if (progressTimer) {
+      clearInterval(progressTimer);
+      setProgressTimer(null);
+    }
+    
     // Notify parent component
     onMiningUpdate({ isMining: false });
+  };
+
+  // Toggle auto mining
+  const toggleAutoMining = () => {
+    setAutoMining(!autoMining);
+    
+    toast({
+      title: autoMining ? "Auto-Mining Disabled" : "Auto-Mining Enabled",
+      description: autoMining ? "You'll need to start mining manually after each attempt." : "Mining will automatically continue after each attempt.",
+      duration: 3000,
+    });
+    
+    // Update parent component
+    onStatsUpdate({
+      difficulty,
+      successfulMines,
+      totalAttempts,
+      balance,
+      activeMiningTime,
+      level,
+      autoMining: !autoMining
+    });
   };
 
   // Handle difficulty change
@@ -177,7 +355,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
       successfulMines,
       totalAttempts,
       balance,
-      activeMiningTime
+      activeMiningTime,
+      level,
+      autoMining
     });
   };
 
@@ -192,7 +372,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
       successfulMines,
       totalAttempts,
       balance,
-      activeMiningTime
+      activeMiningTime,
+      level,
+      autoMining
     });
   };
 
@@ -208,6 +390,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
     setActiveMiningTime(0);
     setSuccessfulAnimation(false);
     setIsMiningComplete(false);
+    setLevel(1);
+    setProgress(0);
+    setTaskCompleted(0);
     
     // Update parent component
     onStatsUpdate({
@@ -215,7 +400,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
       successfulMines: 0,
       totalAttempts: 0,
       balance: 0,
-      activeMiningTime: 0
+      activeMiningTime: 0,
+      level: 1,
+      autoMining
     });
     
     toast({
@@ -230,8 +417,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
     return () => {
       if (miningTimeout) clearTimeout(miningTimeout);
       if (timeInterval) clearInterval(timeInterval);
+      if (progressTimer) clearInterval(progressTimer);
     };
-  }, [miningTimeout, timeInterval]);
+  }, [miningTimeout, timeInterval, progressTimer]);
 
   // Update parent component with initial stats
   useEffect(() => {
@@ -240,9 +428,20 @@ const MiningCard: React.FC<MiningCardProps> = ({
       successfulMines,
       totalAttempts,
       balance,
-      activeMiningTime
+      activeMiningTime,
+      level,
+      autoMining
     });
+    
+    // Initial task completion check
+    checkTaskCompletion();
   }, []);
+  
+  // Is 24h mining time reached
+  const isMiningTimeExceeded = activeMiningTime >= MAX_MINING_TIME;
+  
+  // Calculate time remaining for current mining attempt
+  const timeRemaining = (miningDuration / 1000) - (progressValue / 100 * (miningDuration / 1000));
   
   return (
     <div className="glass-card rounded-xl p-6 shadow-sm transition-all duration-300">
@@ -259,7 +458,33 @@ const MiningCard: React.FC<MiningCardProps> = ({
           </Button>
         </div>
         
+        {/* Level progress */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Level {level}</span>
+            <span className="text-xs text-muted-foreground">{taskCompleted}% complete</span>
+          </div>
+          <Progress value={progress * 100} className="h-2" />
+          <p className="text-xs text-muted-foreground">Task: {currentTask}</p>
+        </div>
+        
         <div className="space-y-6">
+          {/* Auto-mining switch */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">Auto-Mining</span>
+            </div>
+            <Button
+              variant={autoMining ? "default" : "outline"}
+              size="sm"
+              onClick={toggleAutoMining}
+              className={autoMining ? "bg-scremy hover:bg-scremy/90" : ""}
+            >
+              {autoMining ? "Enabled" : "Disabled"}
+            </Button>
+          </div>
+          
           {/* Difficulty control */}
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-1">
@@ -311,6 +536,19 @@ const MiningCard: React.FC<MiningCardProps> = ({
             </div>
           </div>
           
+          {/* Mining progress */}
+          {isMining && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Mining progress</span>
+                <span className="text-xs text-muted-foreground">
+                  {Math.floor(timeRemaining)}s remaining
+                </span>
+              </div>
+              <Progress value={progressValue} className="h-2" />
+            </div>
+          )}
+          
           {/* Mining info */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
@@ -319,7 +557,18 @@ const MiningCard: React.FC<MiningCardProps> = ({
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">Reward per Block</p>
-              <p className="font-semibold">{reward.toFixed(2)} <span className="text-scremy">SCR</span></p>
+              <p className="font-semibold">
+                {(reward + levelReward).toFixed(2)} <span className="text-scremy">SCR</span>
+                {level > 1 && <span className="text-xs text-muted-foreground ml-1">(+{levelReward.toFixed(2)} level bonus)</span>}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted-foreground">Mining Time</p>
+              <p className="font-semibold">{formatLongTime(activeMiningTime)}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted-foreground">Time Limit</p>
+              <p className="font-semibold">{formatLongTime(MAX_MINING_TIME)}</p>
             </div>
           </div>
           
@@ -329,7 +578,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
               <Button 
                 onClick={startMining} 
                 className="bg-scremy hover:bg-scremy/90 text-scremy-foreground"
-                disabled={successfulAnimation || isMiningComplete}
+                disabled={successfulAnimation || (isMiningComplete && isMiningTimeExceeded && autoMining)}
                 size="lg"
               >
                 <PlayCircle className="mr-2 h-5 w-5" />
@@ -350,10 +599,13 @@ const MiningCard: React.FC<MiningCardProps> = ({
           {/* Mining status */}
           <div className="text-center text-sm text-muted-foreground">
             {isMining && (
-              <p>Mining in progress... (30 seconds)</p>
+              <p>Mining in progress... ({Math.floor(timeRemaining)} seconds remaining)</p>
             )}
             {!isMining && isMiningComplete && !successfulAnimation && (
-              <p>Mining attempt failed. Try again?</p>
+              <p>Mining attempt completed.</p>
+            )}
+            {isMiningTimeExceeded && (
+              <p className="text-amber-400">24 hour mining limit reached. Click Start Mining to continue.</p>
             )}
           </div>
         </div>

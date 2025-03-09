@@ -3,14 +3,16 @@ import React, { useState, useEffect } from 'react';
 import MiningCard from '@/components/MiningCard';
 import MiningAnimation from '@/components/MiningAnimation';
 import StatsDisplay from '@/components/StatsDisplay';
+import MiningSpaces from '@/components/MiningSpaces';
 import { cn } from '@/lib/utils';
-import { Bitcoin, Cpu, Shield, ChevronDown } from 'lucide-react';
+import { Bitcoin, Cpu, Shield, ChevronDown, Clock, Award } from 'lucide-react';
 
 const Index = () => {
   // State for mining
   const [miningState, setMiningState] = useState({
     isMining: false,
     wasSuccessful: false,
+    isSpace: false
   });
   
   // State for stats
@@ -20,6 +22,8 @@ const Index = () => {
     totalAttempts: 0,
     balance: 0,
     activeMiningTime: 0,
+    level: 1,
+    autoMining: true
   });
   
   // State for accordion sections
@@ -30,10 +34,12 @@ const Index = () => {
     isMining: boolean;
     wasSuccessful?: boolean;
     reward?: number;
+    isSpace?: boolean;
   }) => {
     setMiningState({
       isMining: data.isMining,
       wasSuccessful: data.wasSuccessful || false,
+      isSpace: data.isSpace || false
     });
   };
   
@@ -44,6 +50,8 @@ const Index = () => {
     totalAttempts: number;
     balance: number;
     activeMiningTime: number;
+    level: number;
+    autoMining: boolean;
   }) => {
     setStats(data);
   };
@@ -120,6 +128,18 @@ const Index = () => {
                     </span>
                     <span className="text-sm">Variable rewards</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-scremy/10 p-2 rounded-full">
+                      <Clock className="h-5 w-5 text-scremy" />
+                    </span>
+                    <span className="text-sm">Auto-Mining feature</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-scremy/10 p-2 rounded-full">
+                      <Award className="h-5 w-5 text-scremy" />
+                    </span>
+                    <span className="text-sm">Level progression</span>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center justify-center">
@@ -150,7 +170,9 @@ const Index = () => {
               <div className="text-center pt-2">
                 <p className="text-sm text-muted-foreground">
                   {miningState.isMining 
-                    ? "Mining in progress... please wait" 
+                    ? miningState.isSpace
+                      ? "Space mining in progress..."
+                      : "Mining in progress... please wait" 
                     : miningState.wasSuccessful 
                       ? "Block successfully mined!" 
                       : "Start mining to earn ScremyCoin"}
@@ -172,6 +194,15 @@ const Index = () => {
               totalAttempts={stats.totalAttempts}
               difficulty={stats.difficulty}
               activeMiningTime={stats.activeMiningTime}
+              level={stats.level}
+              autoMining={stats.autoMining}
+            />
+          </section>
+          
+          {/* Mining spaces */}
+          <section>
+            <MiningSpaces 
+              onMiningUpdate={handleMiningUpdate}
             />
           </section>
           
@@ -229,7 +260,7 @@ const Index = () => {
               </button>
               <div className={cn(
                 "overflow-hidden transition-all duration-300",
-                openSection === 'mining' ? "max-h-96 mb-4" : "max-h-0"
+                openSection === 'mining' ? "max-h-[500px] mb-4" : "max-h-0"
               )}>
                 <p className="text-muted-foreground mb-4">
                   Mining ScremyCoin involves solving complex computational puzzles. The higher the difficulty, 
@@ -245,15 +276,29 @@ const Index = () => {
                   <div className="rounded-lg p-4 bg-secondary/50">
                     <h3 className="font-medium mb-2">2. Start Mining Process</h3>
                     <p className="text-sm text-muted-foreground">
-                      Click the Start Mining button and wait 30 seconds while the system attempts to solve the mining puzzle.
+                      Click the Start Mining button and wait while the system attempts to solve the mining puzzle. Each attempt takes 25-35 seconds.
                     </p>
                   </div>
                   <div className="rounded-lg p-4 bg-secondary/50">
                     <h3 className="font-medium mb-2">3. Collect Your Rewards</h3>
                     <p className="text-sm text-muted-foreground">
-                      If mining is successful, you'll earn SCR based on the difficulty level. Mining continues for up to 24 hours of active time.
+                      If mining is successful, you'll earn SCR based on the difficulty level. Mining continues automatically for up to 24 hours of active time.
                     </p>
                   </div>
+                </div>
+                
+                <div className="mt-6">
+                  <h3 className="font-medium mb-2">Level Progression</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    As you mine, you'll level up by completing specific tasks. Each level increases your base mining reward, allowing you 
+                    to earn more SCR with every successful block.
+                  </p>
+                  
+                  <h3 className="font-medium mb-2">Mining Spaces</h3>
+                  <p className="text-sm text-muted-foreground">
+                    In addition to regular mining, you can unlock mining spaces by watching ads. Each space runs for 12 hours after being unlocked, 
+                    providing an additional way to earn SCR.
+                  </p>
                 </div>
               </div>
             </div>
@@ -272,7 +317,7 @@ const Index = () => {
               </button>
               <div className={cn(
                 "overflow-hidden transition-all duration-300",
-                openSection === 'technical' ? "max-h-96 mb-4" : "max-h-0"
+                openSection === 'technical' ? "max-h-[500px] mb-4" : "max-h-0"
               )}>
                 <p className="text-muted-foreground mb-4">
                   ScremyCoin's mining algorithm is designed to simulate real cryptocurrency mining with a few key differences to make it accessible in a browser.
@@ -281,19 +326,25 @@ const Index = () => {
                   <div className="rounded-lg p-4 bg-secondary/50">
                     <h3 className="font-medium mb-2">Mining Algorithm</h3>
                     <p className="text-sm text-muted-foreground">
-                      Each mining attempt lasts exactly 30 seconds, during which the browser simulates the process of solving a cryptographic puzzle. The success probability is inversely proportional to the difficulty level.
+                      Each mining attempt lasts 25-35 seconds, during which the browser simulates the process of solving a cryptographic puzzle. The success probability is inversely proportional to the difficulty level.
                     </p>
                   </div>
                   <div className="rounded-lg p-4 bg-secondary/50">
                     <h3 className="font-medium mb-2">Reward Calculation</h3>
                     <p className="text-sm text-muted-foreground">
-                      Rewards are calculated based on difficulty, ranging from 0.11 SCR (difficulty 1) to 1.92 SCR (difficulty 10). The formula ensures higher rewards for taking on greater mining challenges.
+                      Basic rewards are calculated based on difficulty, ranging from 0.11 SCR (difficulty 1) to 1.92 SCR (difficulty 10). Additionally, you earn a level bonus of 0.1 SCR multiplied by your current level.
                     </p>
                   </div>
                   <div className="rounded-lg p-4 bg-secondary/50">
-                    <h3 className="font-medium mb-2">Time Limitations</h3>
+                    <h3 className="font-medium mb-2">Auto-Mining</h3>
                     <p className="text-sm text-muted-foreground">
-                      Mining is limited to 24 hours of active mining time to prevent excessive resource usage and ensure fair distribution of rewards across all miners.
+                      With auto-mining enabled, the system automatically starts a new mining operation after each attempt completes, whether successful or not. This continues until the 24-hour limit is reached.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Mining Spaces</h3>
+                    <p className="text-sm text-muted-foreground">
+                      The separate mining spaces feature allows you to unlock additional mining capacity by watching ads. Each space remains active for 12 hours after being unlocked, and you can unlock up to 5 spaces simultaneously.
                     </p>
                   </div>
                 </div>

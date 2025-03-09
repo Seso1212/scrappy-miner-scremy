@@ -41,7 +41,7 @@ export const generateHash = (): string => {
 
 /**
  * Calculate mining reward based on difficulty
- * Now rewards 0.11 to 1.92 SCR based on difficulty
+ * Rewards 0.11 to 1.92 SCR based on difficulty
  */
 export const calculateReward = (difficulty: number): number => {
   // Base reward starts at 0.11 SCR for difficulty 1
@@ -68,12 +68,50 @@ export const formatTime = (seconds: number): string => {
 };
 
 /**
+ * Format time in seconds to hh:mm:ss format
+ */
+export const formatLongTime = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+/**
  * Calculate max mining time (24 hours in seconds)
  */
 export const MAX_MINING_TIME = 24 * 60 * 60; // 24 hours in seconds
 
 /**
- * Fixed mining duration in milliseconds
+ * Calculate max space mining time (12 hours in seconds)
  */
-export const MINING_DURATION = 30 * 1000; // 30 seconds in milliseconds
+export const MAX_SPACE_MINING_TIME = 12 * 60 * 60; // 12 hours in seconds
+
+/**
+ * Mining duration range in milliseconds (25-35 seconds)
+ */
+export const MIN_MINING_DURATION = 25 * 1000; // 25 seconds
+export const MAX_MINING_DURATION = 35 * 1000; // 35 seconds
+
+/**
+ * Get random mining duration between MIN and MAX
+ */
+export const getRandomMiningDuration = (): number => {
+  return Math.floor(Math.random() * (MAX_MINING_DURATION - MIN_MINING_DURATION + 1)) + MIN_MINING_DURATION;
+};
+
+/**
+ * Space ad duration in hours
+ */
+export const SPACE_AD_DURATION = 12; // 12 hours
+
+/**
+ * Maximum number of mining spaces
+ */
+export const MAX_SPACES = 5;
+
+/**
+ * Base reward for level 1
+ */
+export const BASE_REWARD = 0.1;
 
