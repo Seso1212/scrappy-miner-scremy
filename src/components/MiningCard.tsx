@@ -11,7 +11,13 @@ import {
   Info
 } from 'lucide-react';
 
-import { calculateMiningProbability, attemptMining, calculateReward } from '@/lib/miningUtils';
+import { 
+  calculateMiningProbability, 
+  attemptMining, 
+  calculateReward, 
+  MINING_DURATION,
+  MAX_MINING_TIME 
+} from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
 
 interface MiningCardProps {
@@ -43,8 +49,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
   const [balance, setBalance] = useState(0);
   const [activeMiningTime, setActiveMiningTime] = useState(0);
   const [successfulAnimation, setSuccessfulAnimation] = useState(false);
-  const [miningInterval, setMiningInterval] = useState<number | null>(null);
+  const [miningTimeout, setMiningTimeout] = useState<number | null>(null);
   const [timeInterval, setTimeInterval] = useState<number | null>(null);
+  const [isMiningComplete, setIsMiningComplete] = useState(false);
 
   // Mining info
   const probability = calculateMiningProbability(difficulty);
@@ -80,7 +87,20 @@ const MiningCard: React.FC<MiningCardProps> = ({
       // Show toast notification
       toast({
         title: "Block Successfully Mined!",
-        description: `You earned ${miningReward} SCR.`,
+        description: `You earned ${miningReward.toFixed(2)} SCR.`,
+        duration: 3000,
+      });
+    } else {
+      // Mining failed, but operation is now complete
+      setIsMiningComplete(true);
+      stopMining();
+      
+      // Notify parent that mining is complete but unsuccessful
+      onMiningUpdate({ isMining: false, wasSuccessful: false });
+      
+      toast({
+        title: "Mining Unsuccessful",
+        description: "Try again or adjust difficulty.",
         duration: 3000,
       });
     }
@@ -101,20 +121,28 @@ const MiningCard: React.FC<MiningCardProps> = ({
     
     setIsMining(true);
     setSuccessfulAnimation(false);
+    setIsMiningComplete(false);
     
     // Notify parent component
     onMiningUpdate({ isMining: true });
     
-    // Set up mining interval
-    const interval = window.setInterval(() => {
+    // Set up fixed mining timeout (30 seconds)
+    const timeout = window.setTimeout(() => {
       processMiningAttempt();
-    }, 3000 + Math.random() * 2000); // Random interval between 3-5 seconds
+    }, MINING_DURATION);
     
-    setMiningInterval(interval);
+    setMiningTimeout(timeout);
     
     // Set up time tracking interval
     const timeTracker = window.setInterval(() => {
-      setActiveMiningTime(prev => prev + 1);
+      setActiveMiningTime(prev => {
+        // Check if we've reached the maximum mining time
+        if (prev >= MAX_MINING_TIME) {
+          stopMining();
+          return prev;
+        }
+        return prev + 1;
+      });
     }, 1000);
     
     setTimeInterval(timeTracker);
@@ -124,10 +152,10 @@ const MiningCard: React.FC<MiningCardProps> = ({
   const stopMining = () => {
     setIsMining(false);
     
-    // Clear intervals
-    if (miningInterval) {
-      clearInterval(miningInterval);
-      setMiningInterval(null);
+    // Clear timeout and intervals
+    if (miningTimeout) {
+      clearTimeout(miningTimeout);
+      setMiningTimeout(null);
     }
     
     if (timeInterval) {
@@ -179,6 +207,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
     setBalance(0);
     setActiveMiningTime(0);
     setSuccessfulAnimation(false);
+    setIsMiningComplete(false);
     
     // Update parent component
     onStatsUpdate({
@@ -196,18 +225,13 @@ const MiningCard: React.FC<MiningCardProps> = ({
     });
   };
 
-  // Animation complete handler
-  const handleAnimationComplete = () => {
-    setSuccessfulAnimation(false);
-  };
-
   // Clean up intervals on unmount
   useEffect(() => {
     return () => {
-      if (miningInterval) clearInterval(miningInterval);
+      if (miningTimeout) clearTimeout(miningTimeout);
       if (timeInterval) clearInterval(timeInterval);
     };
-  }, [miningInterval, timeInterval]);
+  }, [miningTimeout, timeInterval]);
 
   // Update parent component with initial stats
   useEffect(() => {
@@ -244,7 +268,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
                 <div className="relative group">
                   <Info className="h-3.5 w-3.5 text-muted-foreground/70" />
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-md invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    Higher difficulty means lower chance of successful mining but same rewards.
+                    Higher difficulty means lower chance of successful mining but higher rewards.
                   </div>
                 </div>
               </label>
@@ -282,8 +306,8 @@ const MiningCard: React.FC<MiningCardProps> = ({
             />
             
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-              <span>Easier</span>
-              <span>Harder</span>
+              <span>Fixed</span>
+              <span>Not Fixed</span>
             </div>
           </div>
           
@@ -295,7 +319,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">Reward per Block</p>
-              <p className="font-semibold">{reward} <span className="text-scremy">SCR</span></p>
+              <p className="font-semibold">{reward.toFixed(2)} <span className="text-scremy">SCR</span></p>
             </div>
           </div>
           
@@ -305,7 +329,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
               <Button 
                 onClick={startMining} 
                 className="bg-scremy hover:bg-scremy/90 text-scremy-foreground"
-                disabled={successfulAnimation}
+                disabled={successfulAnimation || isMiningComplete}
                 size="lg"
               >
                 <PlayCircle className="mr-2 h-5 w-5" />
@@ -320,6 +344,16 @@ const MiningCard: React.FC<MiningCardProps> = ({
                 <PauseCircle className="mr-2 h-5 w-5" />
                 Stop Mining
               </Button>
+            )}
+          </div>
+          
+          {/* Mining status */}
+          <div className="text-center text-sm text-muted-foreground">
+            {isMining && (
+              <p>Mining in progress... (30 seconds)</p>
+            )}
+            {!isMining && isMiningComplete && !successfulAnimation && (
+              <p>Mining attempt failed. Try again?</p>
             )}
           </div>
         </div>

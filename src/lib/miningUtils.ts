@@ -41,10 +41,21 @@ export const generateHash = (): string => {
 
 /**
  * Calculate mining reward based on difficulty
+ * Now rewards 0.11 to 1.92 SCR based on difficulty
  */
 export const calculateReward = (difficulty: number): number => {
-  // Base reward is 50 SCR
-  return 50;
+  // Base reward starts at 0.11 SCR for difficulty 1
+  // Max reward is 1.92 SCR for difficulty 10
+  const baseReward = 0.11;
+  const maxReward = 1.92;
+  const normalizedDifficulty = Math.max(1, Math.min(10, difficulty));
+  
+  // Calculate reward based on difficulty
+  const rewardMultiplier = (normalizedDifficulty - 1) / 9; // 0 for diff=1, 1 for diff=10
+  const reward = baseReward + rewardMultiplier * (maxReward - baseReward);
+  
+  // Round to 2 decimal places
+  return Math.round(reward * 100) / 100;
 };
 
 /**
@@ -55,3 +66,14 @@ export const formatTime = (seconds: number): string => {
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
+
+/**
+ * Calculate max mining time (24 hours in seconds)
+ */
+export const MAX_MINING_TIME = 24 * 60 * 60; // 24 hours in seconds
+
+/**
+ * Fixed mining duration in milliseconds
+ */
+export const MINING_DURATION = 30 * 1000; // 30 seconds in milliseconds
+
