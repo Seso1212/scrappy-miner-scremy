@@ -4,6 +4,7 @@ import MiningCard from '@/components/MiningCard';
 import MiningAnimation from '@/components/MiningAnimation';
 import StatsDisplay from '@/components/StatsDisplay';
 import { cn } from '@/lib/utils';
+import { Bitcoin, Cpu, Shield, ChevronDown } from 'lucide-react';
 
 const Index = () => {
   // State for mining
@@ -20,6 +21,9 @@ const Index = () => {
     balance: 0,
     activeMiningTime: 0,
   });
+  
+  // State for accordion sections
+  const [openSection, setOpenSection] = useState<string | null>("about");
   
   // Handle mining updates
   const handleMiningUpdate = (data: {
@@ -51,6 +55,11 @@ const Index = () => {
       wasSuccessful: false,
     }));
   };
+  
+  // Toggle accordion section
+  const toggleSection = (section: string) => {
+    setOpenSection(openSection === section ? null : section);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-background/95">
@@ -79,6 +88,52 @@ const Index = () => {
       {/* Main content */}
       <main className="flex-1 w-full px-4 sm:px-6 md:px-8 pb-12 max-w-7xl mx-auto">
         <div className="flex flex-col gap-8">
+          {/* Hero section */}
+          <section className="glass-card rounded-xl p-6 md:p-8">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h1 className="text-3xl font-bold mb-4">
+                  Web-Based Mining Simplified
+                </h1>
+                <p className="text-muted-foreground mb-6">
+                  ScremyCoin represents the future of browser-based cryptocurrency mining. 
+                  Our innovative approach allows anyone with a web browser to start mining 
+                  without specialized hardware. Adjust difficulty settings, monitor real-time 
+                  statistics, and earn rewards based on your mining success.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-scremy/10 p-2 rounded-full">
+                      <Cpu className="h-5 w-5 text-scremy" />
+                    </span>
+                    <span className="text-sm">Browser-based mining</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-scremy/10 p-2 rounded-full">
+                      <Shield className="h-5 w-5 text-scremy" />
+                    </span>
+                    <span className="text-sm">Secure processing</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-scremy/10 p-2 rounded-full">
+                      <Bitcoin className="h-5 w-5 text-scremy" />
+                    </span>
+                    <span className="text-sm">Variable rewards</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center">
+                <div className="relative w-48 h-48 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-scremy/10 rounded-full animate-ping-slow opacity-30"></div>
+                  <div className="absolute inset-4 bg-scremy/20 rounded-full animate-ping-slow opacity-50 animation-delay-500"></div>
+                  <div className="relative bg-scremy text-white w-32 h-32 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">
+                    SCR
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          
           {/* Mining section */}
           <section className="grid md:grid-cols-2 gap-6 md:gap-8">
             <div className={cn(
@@ -120,30 +175,128 @@ const Index = () => {
             />
           </section>
           
-          {/* Info section */}
+          {/* Accordion Sections */}
           <section className="glass-card rounded-xl p-6 md:p-8 mt-6">
-            <h2 className="text-xl font-semibold mb-4">How Mining Works</h2>
-            <p className="text-muted-foreground mb-4">
-              Mining ScremyCoin involves solving complex computational puzzles. The higher the difficulty, the lower your chance of successfully mining a block. Each successful block rewards you with 50 SCR. Choose your difficulty wisely!
-            </p>
-            <div className="grid md:grid-cols-3 gap-4 mt-6">
-              <div className="rounded-lg p-4 bg-secondary/50">
-                <h3 className="font-medium mb-2">1. Set Mining Difficulty</h3>
-                <p className="text-sm text-muted-foreground">
-                  Adjust the difficulty level from 1-10. Higher difficulty means lower chance of success.
+            {/* About ScremyCoin */}
+            <div className="border-b border-border last:border-0">
+              <button 
+                className="flex items-center justify-between w-full py-4 text-left"
+                onClick={() => toggleSection('about')}
+              >
+                <h2 className="text-xl font-semibold">About ScremyCoin</h2>
+                <ChevronDown className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform",
+                  openSection === 'about' ? "transform rotate-180" : ""
+                )} />
+              </button>
+              <div className={cn(
+                "overflow-hidden transition-all duration-300",
+                openSection === 'about' ? "max-h-96 mb-4" : "max-h-0"
+              )}>
+                <p className="text-muted-foreground mb-4">
+                  ScremyCoin (SCR) is a simulated cryptocurrency that demonstrates the principles of blockchain mining. 
+                  Unlike traditional cryptocurrencies that require powerful computers, ScremyCoin operates entirely in your browser, 
+                  making it accessible to everyone.
                 </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Browser-based Mining</h3>
+                    <p className="text-sm text-muted-foreground">
+                      ScremyCoin's innovation is its ability to mine directly in your web browser, eliminating the need for expensive mining equipment.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Adaptive Rewards</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Mining rewards range from 0.11 to 1.92 SCR per block, based on the difficulty level you choose. Higher difficulty means potentially higher rewards.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-lg p-4 bg-secondary/50">
-                <h3 className="font-medium mb-2">2. Start Mining Process</h3>
-                <p className="text-sm text-muted-foreground">
-                  Click the Start Mining button and wait while the system attempts to solve the mining puzzle.
+            </div>
+            
+            {/* How Mining Works */}
+            <div className="border-b border-border last:border-0">
+              <button 
+                className="flex items-center justify-between w-full py-4 text-left"
+                onClick={() => toggleSection('mining')}
+              >
+                <h2 className="text-xl font-semibold">How Mining Works</h2>
+                <ChevronDown className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform",
+                  openSection === 'mining' ? "transform rotate-180" : ""
+                )} />
+              </button>
+              <div className={cn(
+                "overflow-hidden transition-all duration-300",
+                openSection === 'mining' ? "max-h-96 mb-4" : "max-h-0"
+              )}>
+                <p className="text-muted-foreground mb-4">
+                  Mining ScremyCoin involves solving complex computational puzzles. The higher the difficulty, 
+                  the lower your chance of successfully mining a block, but the greater the potential reward.
                 </p>
+                <div className="grid md:grid-cols-3 gap-4 mt-6">
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">1. Set Mining Difficulty</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust the difficulty level from 1-10. Higher difficulty means lower chance of success but higher rewards from 0.11 to 1.92 SCR.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">2. Start Mining Process</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Click the Start Mining button and wait 30 seconds while the system attempts to solve the mining puzzle.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">3. Collect Your Rewards</h3>
+                    <p className="text-sm text-muted-foreground">
+                      If mining is successful, you'll earn SCR based on the difficulty level. Mining continues for up to 24 hours of active time.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-lg p-4 bg-secondary/50">
-                <h3 className="font-medium mb-2">3. Collect Your Rewards</h3>
-                <p className="text-sm text-muted-foreground">
-                  If mining is successful, you'll earn 50 SCR regardless of difficulty level.
+            </div>
+            
+            {/* Technical Details */}
+            <div className="border-b border-border last:border-0">
+              <button 
+                className="flex items-center justify-between w-full py-4 text-left"
+                onClick={() => toggleSection('technical')}
+              >
+                <h2 className="text-xl font-semibold">Technical Details</h2>
+                <ChevronDown className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform",
+                  openSection === 'technical' ? "transform rotate-180" : ""
+                )} />
+              </button>
+              <div className={cn(
+                "overflow-hidden transition-all duration-300",
+                openSection === 'technical' ? "max-h-96 mb-4" : "max-h-0"
+              )}>
+                <p className="text-muted-foreground mb-4">
+                  ScremyCoin's mining algorithm is designed to simulate real cryptocurrency mining with a few key differences to make it accessible in a browser.
                 </p>
+                <div className="space-y-4">
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Mining Algorithm</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Each mining attempt lasts exactly 30 seconds, during which the browser simulates the process of solving a cryptographic puzzle. The success probability is inversely proportional to the difficulty level.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Reward Calculation</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Rewards are calculated based on difficulty, ranging from 0.11 SCR (difficulty 1) to 1.92 SCR (difficulty 10). The formula ensures higher rewards for taking on greater mining challenges.
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-4 bg-secondary/50">
+                    <h3 className="font-medium mb-2">Time Limitations</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Mining is limited to 24 hours of active mining time to prevent excessive resource usage and ensure fair distribution of rewards across all miners.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
