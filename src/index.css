@@ -26,6 +26,7 @@
     --ring: 248 90% 66%;
     --scremy: 248 90% 66%;
     --scremy-dark: 248 90% 56%;
+    --scoin: 45 93% 47%;
     --radius: 0.5rem;
   }
 }
@@ -47,6 +48,18 @@
   
   .circle-glow {
     @apply absolute rounded-full bg-scremy opacity-30 blur-3xl;
+  }
+  
+  .scoin-button {
+    @apply bg-amber-500 hover:bg-amber-600 text-white;
+  }
+  
+  .scoin-glow {
+    @apply absolute rounded-full bg-amber-500 opacity-30 blur-3xl;
+  }
+  
+  .level-badge {
+    @apply inline-flex items-center justify-center rounded-full text-xs font-medium;
   }
 }
 
@@ -73,6 +86,10 @@
   
   .animate-float {
     animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-shine {
+    animation: shine 2s linear infinite;
   }
 }
 
@@ -127,5 +144,14 @@
   100% {
     opacity: 0;
     transform: translate(calc(-50% + var(--x) * var(--distance)), calc(-50% + var(--y) * var(--distance))) scale(1);
+  }
+}
+
+@keyframes shine {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }

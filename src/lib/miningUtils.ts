@@ -2,25 +2,25 @@
 // Utility functions for mining logic
 
 /**
- * Calculate probability of successful mining based on difficulty
- * @param difficulty 1-10 scale where higher is more difficult
- * @returns Probability of success (0-1)
+ * Calculate mining reward based on level
+ * Rewards 0.05 to 0.5 SCR per hour based on level
  */
-export const calculateMiningProbability = (difficulty: number): number => {
-  // Normalize difficulty to 1-10 range
-  const normalizedDifficulty = Math.max(1, Math.min(10, difficulty));
-  // Higher difficulty = lower probability
-  return 1 - (normalizedDifficulty - 1) / 10;
-};
-
-/**
- * Simulate mining attempt
- * @param difficulty 1-10 scale
- * @returns Whether mining was successful
- */
-export const attemptMining = (difficulty: number): boolean => {
-  const probability = calculateMiningProbability(difficulty);
-  return Math.random() < probability;
+export const calculateReward = (level: number): number => {
+  // Base reward starts at 0.05 SCR/hour for level 1
+  // Max reward is 0.5 SCR/hour for level 10
+  const baseReward = 0.05;
+  const maxReward = 0.5;
+  const normalizedLevel = Math.max(1, Math.min(10, level));
+  
+  // Calculate reward based on level
+  const rewardMultiplier = (normalizedLevel - 1) / 9; // 0 for level=1, 1 for level=10
+  const rewardPerHour = baseReward + rewardMultiplier * (maxReward - baseReward);
+  
+  // Convert to reward per block (30 second blocks)
+  const rewardPerBlock = rewardPerHour / 120; // 120 blocks per hour (30 seconds each)
+  
+  // Round to 4 decimal places
+  return Math.round(rewardPerBlock * 10000) / 10000;
 };
 
 /**
@@ -37,25 +37,6 @@ export const generateHash = (): string => {
   return Array.from({ length: 64 }, () => 
     Math.floor(Math.random() * 16).toString(16)
   ).join('');
-};
-
-/**
- * Calculate mining reward based on difficulty
- * Rewards 0.11 to 1.92 SCR based on difficulty
- */
-export const calculateReward = (difficulty: number): number => {
-  // Base reward starts at 0.11 SCR for difficulty 1
-  // Max reward is 1.92 SCR for difficulty 10
-  const baseReward = 0.11;
-  const maxReward = 1.92;
-  const normalizedDifficulty = Math.max(1, Math.min(10, difficulty));
-  
-  // Calculate reward based on difficulty
-  const rewardMultiplier = (normalizedDifficulty - 1) / 9; // 0 for diff=1, 1 for diff=10
-  const reward = baseReward + rewardMultiplier * (maxReward - baseReward);
-  
-  // Round to 2 decimal places
-  return Math.round(reward * 100) / 100;
 };
 
 /**
@@ -88,16 +69,15 @@ export const MAX_MINING_TIME = 24 * 60 * 60; // 24 hours in seconds
 export const MAX_SPACE_MINING_TIME = 12 * 60 * 60; // 12 hours in seconds
 
 /**
- * Mining duration range in milliseconds (25-35 seconds)
+ * Mining duration is 30 seconds
  */
-export const MIN_MINING_DURATION = 25 * 1000; // 25 seconds
-export const MAX_MINING_DURATION = 35 * 1000; // 35 seconds
+export const MINING_DURATION = 30 * 1000; // 30 seconds in milliseconds
 
 /**
- * Get random mining duration between MIN and MAX
+ * Get random mining duration between 25-35 seconds
  */
 export const getRandomMiningDuration = (): number => {
-  return Math.floor(Math.random() * (MAX_MINING_DURATION - MIN_MINING_DURATION + 1)) + MIN_MINING_DURATION;
+  return Math.floor(Math.random() * (35 * 1000 - 25 * 1000 + 1)) + 25 * 1000;
 };
 
 /**
@@ -111,7 +91,29 @@ export const SPACE_AD_DURATION = 12; // 12 hours
 export const MAX_SPACES = 5;
 
 /**
- * Base reward for level 1
+ * Base EXP needed for leveling up
  */
-export const BASE_REWARD = 0.1;
+export const BASE_EXP_REQUIRED = 100;
+
+/**
+ * Calculate exp required for level up
+ */
+export const calculateExpRequired = (level: number): number => {
+  return BASE_EXP_REQUIRED * Math.pow(1.5, level - 1);
+};
+
+/**
+ * Scoins per ad view
+ */
+export const SCOINS_PER_AD = 5;
+
+/**
+ * Scoins per hour of mining space
+ */
+export const SCOINS_PER_HOUR = 5;
+
+/**
+ * Friend referral bonus percentage
+ */
+export const FRIEND_REFERRAL_BONUS = 0.2; // 20%
 

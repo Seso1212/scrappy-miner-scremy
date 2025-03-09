@@ -3,35 +3,35 @@ import React from 'react';
 import { 
   Bitcoin, 
   Clock, 
-  BarChart3, 
-  TrendingUp,
-  Award
+  Award,
+  Gem,
+  Star
 } from 'lucide-react';
-import { formatNumber, formatTime, MAX_MINING_TIME } from '@/lib/miningUtils';
+import { formatNumber, formatTime, MAX_MINING_TIME, calculateExpRequired } from '@/lib/miningUtils';
 
 interface StatsDisplayProps {
   balance: number;
   successfulMines: number;
   totalAttempts: number;
-  difficulty: number;
+  level: number;
+  exp?: number;
+  expRequired?: number;
   activeMiningTime: number;
-  level?: number;
   autoMining?: boolean;
+  scoins?: number;
 }
 
 const StatsDisplay: React.FC<StatsDisplayProps> = ({
   balance,
   successfulMines,
   totalAttempts,
-  difficulty,
-  activeMiningTime,
   level = 1,
-  autoMining = true
+  exp = 0,
+  expRequired = calculateExpRequired(level),
+  activeMiningTime,
+  autoMining = true,
+  scoins = 0
 }) => {
-  const successRate = totalAttempts > 0 
-    ? ((successfulMines / totalAttempts) * 100).toFixed(1) 
-    : '0.0';
-  
   const miningTimePercentage = (activeMiningTime / MAX_MINING_TIME) * 100;
   
   return (
@@ -45,23 +45,23 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
             <div className="bg-scremy/10 p-2 rounded-full">
               <Bitcoin className="h-4 w-4 text-scremy" />
             </div>
-            <h3 className="text-sm font-medium">Balance</h3>
+            <h3 className="text-sm font-medium">SCR Balance</h3>
           </div>
-          <p className="text-2xl font-bold">{balance.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{balance.toFixed(4)}</p>
           <p className="text-xs text-muted-foreground">SCR</p>
         </div>
         
-        {/* Success Rate */}
+        {/* Scoins */}
         <div className="glass-card p-4 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
-            <div className="bg-scremy/10 p-2 rounded-full">
-              <BarChart3 className="h-4 w-4 text-scremy" />
+            <div className="bg-amber-500/10 p-2 rounded-full">
+              <Gem className="h-4 w-4 text-amber-400" />
             </div>
-            <h3 className="text-sm font-medium">Success Rate</h3>
+            <h3 className="text-sm font-medium">Scoins</h3>
           </div>
-          <p className="text-2xl font-bold">{successRate}%</p>
+          <p className="text-2xl font-bold">{Math.floor(scoins)}</p>
           <p className="text-xs text-muted-foreground">
-            {successfulMines} / {totalAttempts} attempts
+            Can be exchanged for SCR
           </p>
         </div>
         
@@ -91,13 +91,22 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
             <h3 className="text-sm font-medium">Miner Level</h3>
           </div>
           <p className="text-2xl font-bold">{level}</p>
-          <p className="text-xs text-muted-foreground">
-            {autoMining ? "Auto-Mining Enabled" : "Auto-Mining Disabled"}
-          </p>
+          <div className="w-full bg-muted h-1 rounded-full mt-2">
+            <div 
+              className="bg-scremy h-1 rounded-full"
+              style={{ width: `${(exp / expRequired) * 100}%` }}
+            ></div>
+          </div>
         </div>
+      </div>
+      
+      <div className="flex justify-between mt-4 text-sm text-muted-foreground">
+        <div>Successful Mines: {successfulMines}</div>
+        <div>Total Attempts: {totalAttempts}</div>
       </div>
     </div>
   );
 };
 
 export default StatsDisplay;
+

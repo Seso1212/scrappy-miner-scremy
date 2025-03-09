@@ -1,25 +1,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { 
   PlayCircle, 
   PauseCircle, 
   RefreshCw,
-  ChevronUp,
-  ChevronDown,
+  Users,
+  Share2,
   Info,
-  Repeat
+  Repeat,
+  Lock
 } from 'lucide-react';
 
 import { 
-  calculateMiningProbability, 
-  attemptMining, 
   calculateReward, 
   MAX_MINING_TIME,
   getRandomMiningDuration,
-  BASE_REWARD,
-  formatLongTime
+  formatLongTime,
+  calculateExpRequired
 } from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -31,12 +29,14 @@ interface MiningCardProps {
     reward?: number;
   }) => void;
   onStatsUpdate: (data: {
-    difficulty: number;
+    level: number;
+    exp: number;
+    expRequired: number;
     successfulMines: number;
     totalAttempts: number;
     balance: number;
+    scoins: number;
     activeMiningTime: number;
-    level: number;
     autoMining: boolean;
   }) => void;
 }
@@ -49,179 +49,101 @@ const MiningCard: React.FC<MiningCardProps> = ({
 
   // Mining state
   const [isMining, setIsMining] = useState(false);
-  const [difficulty, setDifficulty] = useState(5);
+  const [level, setLevel] = useState(1);
+  const [exp, setExp] = useState(0);
   const [successfulMines, setSuccessfulMines] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [balance, setBalance] = useState(0);
+  const [scoins, setScoins] = useState(0);
   const [activeMiningTime, setActiveMiningTime] = useState(0);
   const [successfulAnimation, setSuccessfulAnimation] = useState(false);
   const [miningTimeout, setMiningTimeout] = useState<number | null>(null);
   const [timeInterval, setTimeInterval] = useState<number | null>(null);
   const [isMiningComplete, setIsMiningComplete] = useState(false);
   const [autoMining, setAutoMining] = useState(true);
-  const [level, setLevel] = useState(1);
-  const [progress, setProgress] = useState(0);
-  const [taskCompleted, setTaskCompleted] = useState(0);
   const [currentTask, setCurrentTask] = useState("");
   const [miningDuration, setMiningDuration] = useState(30000); // Default duration
   const [progressTimer, setProgressTimer] = useState<number | null>(null);
   const [progressValue, setProgressValue] = useState(0);
+  const [referralLink, setReferralLink] = useState("https://scremycoin.com/ref/user123");
+  const [shareToast, setShareToast] = useState(false);
 
-  // Mining info
-  const probability = calculateMiningProbability(difficulty);
-  const successProbability = Math.floor(probability * 100);
-  const reward = calculateReward(difficulty);
-  const levelReward = BASE_REWARD * level;
+  // Calculate exp required for next level
+  const expRequired = calculateExpRequired(level);
+  
+  // Calculate mining reward based on level
+  const reward = calculateReward(level);
 
   // Tasks for level progression
   const tasks = [
-    "Mine 5 blocks successfully",
-    "Mine at difficulty 7 or higher",
-    "Achieve 10 successful mines",
-    "Mine with 75% success rate",
-    "Maintain auto-mining for 30 minutes",
-    "Mine 20 blocks successfully",
-    "Mine at difficulty 10",
-    "Achieve 50 successful mines",
-    "Mine with 90% success rate",
-    "Complete 24 hours of mining"
+    "Share ScremyCoin on social media",
+    "Invite 1 friend to join ScremyCoin",
+    "Mine for 1 hour continuously",
+    "Complete your profile",
+    "Invite 3 friends to join ScremyCoin",
+    "Mine for 5 hours total",
+    "Share your mining achievements",
+    "Invite 5 friends to join ScremyCoin",
+    "Complete all tutorials",
+    "Mine for 24 hours total"
   ];
 
   // Update current task based on level
   useEffect(() => {
     if (level <= 10) {
       setCurrentTask(tasks[level - 1]);
-      setProgress(0);
-      setTaskCompleted(0);
     }
   }, [level]);
 
-  // Check task completion
-  const checkTaskCompletion = () => {
-    let completed = 0;
-    const successRate = totalAttempts > 0 ? (successfulMines / totalAttempts) * 100 : 0;
-    
-    // Check which task is complete based on level
-    switch(level) {
-      case 1:
-        completed = Math.min(successfulMines / 5, 1);
-        if (successfulMines >= 5) {
-          levelUp();
-        }
-        break;
-      case 2:
-        if (difficulty >= 7) {
-          completed = 1;
-          levelUp();
-        }
-        break;
-      case 3:
-        completed = Math.min(successfulMines / 10, 1);
-        if (successfulMines >= 10) {
-          levelUp();
-        }
-        break;
-      case 4:
-        completed = Math.min(successRate / 75, 1);
-        if (successRate >= 75 && totalAttempts >= 4) {
-          levelUp();
-        }
-        break;
-      case 5:
-        completed = Math.min(activeMiningTime / (30 * 60), 1);
-        if (activeMiningTime >= 30 * 60) {
-          levelUp();
-        }
-        break;
-      case 6:
-        completed = Math.min(successfulMines / 20, 1);
-        if (successfulMines >= 20) {
-          levelUp();
-        }
-        break;
-      case 7:
-        if (difficulty >= 10) {
-          completed = 1;
-          levelUp();
-        }
-        break;
-      case 8:
-        completed = Math.min(successfulMines / 50, 1);
-        if (successfulMines >= 50) {
-          levelUp();
-        }
-        break;
-      case 9:
-        completed = Math.min(successRate / 90, 1);
-        if (successRate >= 90 && totalAttempts >= 10) {
-          levelUp();
-        }
-        break;
-      case 10:
-        completed = Math.min(activeMiningTime / MAX_MINING_TIME, 1);
-        if (activeMiningTime >= MAX_MINING_TIME) {
-          levelUp();
-        }
-        break;
-    }
-    
-    setProgress(completed);
-    setTaskCompleted(Math.floor(completed * 100));
+  // Add experience points
+  const addExp = (amount: number) => {
+    setExp(prevExp => {
+      const newExp = prevExp + amount;
+      const expNeeded = calculateExpRequired(level);
+      
+      // Check if leveled up
+      if (newExp >= expNeeded && level < 10) {
+        setLevel(prevLevel => prevLevel + 1);
+        toast({
+          title: "Level Up!",
+          description: `You've reached level ${level + 1}! New task unlocked.`,
+          duration: 3000,
+        });
+        return newExp - expNeeded;
+      }
+      return newExp;
+    });
   };
 
-  // Level up function
-  const levelUp = () => {
-    if (level < 10) {
-      const newLevel = level + 1;
-      setLevel(newLevel);
-      toast({
-        title: "Level Up!",
-        description: `You've reached level ${newLevel}! New task unlocked.`,
-        duration: 3000,
-      });
-    }
-  };
-
-  // Process mining attempt
-  const processMiningAttempt = () => {
-    const success = attemptMining(difficulty);
+  // Process mining block
+  const processMiningBlock = () => {
     const newTotalAttempts = totalAttempts + 1;
+    const miningReward = calculateReward(level);
+    const newBalance = balance + miningReward;
+    const newSuccessfulMines = successfulMines + 1;
     
     setTotalAttempts(newTotalAttempts);
+    setSuccessfulMines(newSuccessfulMines);
+    setBalance(newBalance);
+    setSuccessfulAnimation(true);
     setProgressValue(0);
     
-    if (success) {
-      const newSuccessfulMines = successfulMines + 1;
-      const miningReward = calculateReward(difficulty) + levelReward;
-      const newBalance = balance + miningReward;
-      
-      setSuccessfulMines(newSuccessfulMines);
-      setBalance(newBalance);
-      setSuccessfulAnimation(true);
-      
-      // Notify parent component
-      onMiningUpdate({ 
-        isMining: false, 
-        wasSuccessful: true,
-        reward: miningReward
-      });
-      
-      // Show toast notification
-      toast({
-        title: "Block Successfully Mined!",
-        description: `You earned ${miningReward.toFixed(2)} SCR.`,
-        duration: 3000,
-      });
-    } else {
-      // Mining failed
-      onMiningUpdate({ isMining: false, wasSuccessful: false });
-      
-      toast({
-        title: "Mining Unsuccessful",
-        description: "Try again or adjust difficulty.",
-        duration: 3000,
-      });
-    }
+    // Add exp for mining
+    addExp(5);
+    
+    // Notify parent component
+    onMiningUpdate({ 
+      isMining: false, 
+      wasSuccessful: true,
+      reward: miningReward
+    });
+    
+    // Show toast notification
+    toast({
+      title: "Block Successfully Mined!",
+      description: `You earned ${miningReward.toFixed(4)} SCR.`,
+      duration: 3000,
+    });
     
     // Check if we should continue auto-mining
     if (autoMining && activeMiningTime < MAX_MINING_TIME) {
@@ -235,17 +157,16 @@ const MiningCard: React.FC<MiningCardProps> = ({
       stopMining();
     }
     
-    // Check if tasks are completed
-    checkTaskCompletion();
-    
     // Update parent component with current stats
     onStatsUpdate({
-      difficulty,
-      successfulMines: success ? successfulMines + 1 : successfulMines,
-      totalAttempts: newTotalAttempts,
-      balance: success ? balance + reward + levelReward : balance,
-      activeMiningTime,
       level,
+      exp, 
+      expRequired,
+      successfulMines: newSuccessfulMines,
+      totalAttempts: newTotalAttempts,
+      balance: newBalance,
+      scoins,
+      activeMiningTime,
       autoMining
     });
   };
@@ -267,7 +188,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
     
     // Set up mining timeout
     const timeout = window.setTimeout(() => {
-      processMiningAttempt();
+      processMiningBlock();
     }, duration);
     
     setMiningTimeout(timeout);
@@ -335,46 +256,70 @@ const MiningCard: React.FC<MiningCardProps> = ({
     
     // Update parent component
     onStatsUpdate({
-      difficulty,
+      level,
+      exp,
+      expRequired,
       successfulMines,
       totalAttempts,
       balance,
+      scoins,
       activeMiningTime,
-      level,
       autoMining: !autoMining
     });
   };
 
-  // Handle difficulty change
-  const handleDifficultyChange = (newValue: number[]) => {
-    setDifficulty(newValue[0]);
+  // Share on social media function
+  const shareOnSocial = (platform: string) => {
+    // Simulate sharing on social media
+    toast({
+      title: `Shared on ${platform}!`,
+      description: "Thank you for spreading the word about ScremyCoin!",
+      duration: 3000,
+    });
     
-    // Update parent with new difficulty
-    onStatsUpdate({
-      difficulty: newValue[0],
-      successfulMines,
-      totalAttempts,
-      balance,
-      activeMiningTime,
-      level,
-      autoMining
+    // Add exp for sharing
+    addExp(15);
+    
+    // Show toast when social task is complete
+    if (level === 1) {
+      toast({
+        title: "Task Completed!",
+        description: "You've completed the social media sharing task!",
+        duration: 3000,
+      });
+    }
+  };
+
+  // Copy referral link function
+  const copyReferralLink = () => {
+    navigator.clipboard.writeText(referralLink).then(() => {
+      setShareToast(true);
+      toast({
+        title: "Referral Link Copied!",
+        description: "Share this link with friends to earn 20% of their scoins!",
+        duration: 3000,
+      });
+      
+      // Add exp for potential referral
+      if (level === 2 || level === 5 || level === 8) {
+        addExp(10);
+      }
     });
   };
 
-  // Increment/decrement difficulty
-  const adjustDifficulty = (amount: number) => {
-    const newDifficulty = Math.min(Math.max(difficulty + amount, 1), 10);
-    setDifficulty(newDifficulty);
+  // Simulate inviting a friend
+  const inviteFriend = () => {
+    // Add exp for inviting
+    addExp(25);
     
-    // Update parent with new difficulty
-    onStatsUpdate({
-      difficulty: newDifficulty,
-      successfulMines,
-      totalAttempts,
-      balance,
-      activeMiningTime,
-      level,
-      autoMining
+    // Add scoins for successful referral
+    const referralScoins = 10;
+    setScoins(prev => prev + referralScoins);
+    
+    toast({
+      title: "Friend Invited!",
+      description: `You earned ${referralScoins} scoins as a referral bonus!`,
+      duration: 3000,
     });
   };
 
@@ -391,17 +336,19 @@ const MiningCard: React.FC<MiningCardProps> = ({
     setSuccessfulAnimation(false);
     setIsMiningComplete(false);
     setLevel(1);
-    setProgress(0);
-    setTaskCompleted(0);
+    setExp(0);
+    setScoins(0);
     
     // Update parent component
     onStatsUpdate({
-      difficulty,
+      level: 1,
+      exp: 0,
+      expRequired: calculateExpRequired(1),
       successfulMines: 0,
       totalAttempts: 0,
       balance: 0,
+      scoins: 0,
       activeMiningTime: 0,
-      level: 1,
       autoMining
     });
     
@@ -424,17 +371,16 @@ const MiningCard: React.FC<MiningCardProps> = ({
   // Update parent component with initial stats
   useEffect(() => {
     onStatsUpdate({
-      difficulty,
+      level,
+      exp,
+      expRequired,
       successfulMines,
       totalAttempts,
       balance,
+      scoins,
       activeMiningTime,
-      level,
       autoMining
     });
-    
-    // Initial task completion check
-    checkTaskCompletion();
   }, []);
   
   // Is 24h mining time reached
@@ -461,10 +407,10 @@ const MiningCard: React.FC<MiningCardProps> = ({
         {/* Level progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Level {level}</span>
-            <span className="text-xs text-muted-foreground">{taskCompleted}% complete</span>
+            <span className="text-sm font-medium">Level {level} Miner</span>
+            <span className="text-xs text-muted-foreground">{Math.floor((exp / expRequired) * 100)}% complete</span>
           </div>
-          <Progress value={progress * 100} className="h-2" />
+          <Progress value={(exp / expRequired) * 100} className="h-2" />
           <p className="text-xs text-muted-foreground">Task: {currentTask}</p>
         </div>
         
@@ -485,54 +431,67 @@ const MiningCard: React.FC<MiningCardProps> = ({
             </Button>
           </div>
           
-          {/* Difficulty control */}
+          {/* Mining level (locked) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-1">
               <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                Mining Difficulty
+                Mining Level
                 <div className="relative group">
                   <Info className="h-3.5 w-3.5 text-muted-foreground/70" />
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-md shadow-md invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    Higher difficulty means lower chance of successful mining but higher rewards.
+                    Complete tasks to level up and increase your mining rewards.
                   </div>
                 </div>
               </label>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => adjustDifficulty(-1)}
-                  disabled={difficulty <= 1 || isMining}
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-                <span className="w-6 text-center text-sm font-medium">{difficulty}</span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => adjustDifficulty(1)}
-                  disabled={difficulty >= 10 || isMining}
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </Button>
+              <div className="flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="w-6 text-center text-sm font-medium">{level}</span>
               </div>
             </div>
             
-            <Slider
-              value={[difficulty]}
-              min={1}
-              max={10}
-              step={1}
-              onValueChange={handleDifficultyChange}
-              disabled={isMining}
-              className="py-1"
-            />
-            
-            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-              <span>Fixed</span>
-              <span>Not Fixed</span>
+            <div className="h-5 bg-secondary/50 rounded-md flex">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`flex-1 ${i + 1 <= level ? 'bg-scremy/50' : ''} first:rounded-l-md last:rounded-r-md ${i > 0 ? 'border-l border-background/10' : ''}`}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {/* Task completion */}
+          <div className="space-y-2 pt-2">
+            <p className="text-sm font-medium mb-2">Complete Tasks to Level Up</p>
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => shareOnSocial('Twitter')}
+              >
+                <Share2 className="h-4 w-4 mr-2 text-blue-400" />
+                Share on Twitter
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={copyReferralLink}
+              >
+                <Users className="h-4 w-4 mr-2 text-scremy" />
+                Copy Referral Link
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={inviteFriend}
+              >
+                <Users className="h-4 w-4 mr-2 text-green-400" />
+                Invite Friends
+              </Button>
             </div>
           </div>
           
@@ -552,14 +511,15 @@ const MiningCard: React.FC<MiningCardProps> = ({
           {/* Mining info */}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
-              <p className="text-muted-foreground">Success Chance</p>
-              <p className="font-semibold">{successProbability}%</p>
-            </div>
-            <div className="space-y-1">
               <p className="text-muted-foreground">Reward per Block</p>
               <p className="font-semibold">
-                {(reward + levelReward).toFixed(2)} <span className="text-scremy">SCR</span>
-                {level > 1 && <span className="text-xs text-muted-foreground ml-1">(+{levelReward.toFixed(2)} level bonus)</span>}
+                {reward.toFixed(4)} <span className="text-scremy">SCR</span>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted-foreground">Scoins Balance</p>
+              <p className="font-semibold">
+                {scoins} <span className="text-amber-400">Scoins</span>
               </p>
             </div>
             <div className="space-y-1">
@@ -615,3 +575,4 @@ const MiningCard: React.FC<MiningCardProps> = ({
 };
 
 export default MiningCard;
+
