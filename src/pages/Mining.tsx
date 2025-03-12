@@ -10,7 +10,7 @@ import { calculateExpRequired } from '@/lib/miningUtils';
 import { useCrypto } from '@/contexts/CryptoContext';
 
 const Mining = () => {
-  const { userData } = useCrypto();
+  const { userData, updateUserStats, addScr, addExp } = useCrypto();
   
   // State for mining
   const [miningState, setMiningState] = useState({
@@ -33,6 +33,35 @@ const Mining = () => {
       isMining: data.isMining,
       wasSuccessful: data.wasSuccessful || false,
       isSpace: data.isSpace || false
+    });
+    
+    // If mining was successful and there's a reward, add it to user's SCR balance
+    if (data.wasSuccessful && data.reward) {
+      addScr(data.reward);
+    }
+  };
+  
+  // Handle stats updates
+  const handleStatsUpdate = (data: {
+    level: number;
+    exp: number;
+    expRequired: number;
+    successfulMines: number;
+    totalAttempts: number;
+    balance: number;
+    scoins: number;
+    activeMiningTime: number;
+    autoMining: boolean;
+  }) => {
+    updateUserStats({
+      level: data.level,
+      exp: data.exp,
+      expRequired: data.expRequired,
+      successfulMines: data.successfulMines,
+      totalAttempts: data.totalAttempts,
+      activeMiningTime: data.activeMiningTime,
+      autoMining: data.autoMining,
+      scoins: data.scoins
     });
   };
   
@@ -88,6 +117,7 @@ const Mining = () => {
           
           <MiningCard 
             onMiningUpdate={handleMiningUpdate}
+            onStatsUpdate={handleStatsUpdate}
           />
         </section>
         
