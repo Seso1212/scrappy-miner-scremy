@@ -84,6 +84,10 @@
     animation: spin 10s linear infinite;
   }
   
+  .animate-reverse {
+    animation-direction: reverse;
+  }
+  
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
