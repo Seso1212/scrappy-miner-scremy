@@ -1,11 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace } from '@/lib/dataService';
+import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace, UserAuth } from '@/lib/dataService';
 import { calculateExpRequired } from '@/lib/miningUtils';
 import { useToast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface CryptoContextProps {
   userData: UserData;
+  auth: UserAuth | null;
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => void;
   updateUserStats: (stats: Partial<UserStats>) => void;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   updateHolding: (symbol: string, amount: number) => void;
@@ -15,24 +20,35 @@ interface CryptoContextProps {
   addExp: (amount: number) => void;
   resetData: () => void;
   convertScoinsToScr: () => void;
+  extendMiningDuration: () => void;
 }
 
 const CryptoContext = createContext<CryptoContextProps | undefined>(undefined);
 
 export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userData, setUserData] = useState<UserData>(DataService.initData());
+  const [auth, setAuth] = useState<UserAuth | null>(DataService.getAuth());
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(DataService.isLoggedIn());
   const { toast } = useToast();
+
+  // Process background mining on app load
+  useEffect(() => {
+    const updatedData = DataService.processPendingMining();
+    setUserData(updatedData);
+  }, []);
 
   useEffect(() => {
     // Sync with localStorage on mount
     setUserData(DataService.initData());
     
-    // Update continuously
+    // Update crypto prices continuously
     const interval = setInterval(() => {
       const data = DataService.initData();
       
       // Update market data
       const updatedMarketData = data.marketData.map(coin => {
+        // Get real-time data from API (simulated here)
+        // In a real app, you would fetch from a cryptocurrency API
         const priceChange = (Math.random() * 3) - 1.5; // -1.5% to +1.5%
         const newPrice = coin.price * (1 + priceChange / 100);
         return {
@@ -65,6 +81,27 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     
     return () => clearInterval(interval);
   }, []);
+
+  // Authentication methods
+  const login = () => {
+    const authData = DataService.getAuth();
+    if (authData) {
+      setAuth(authData);
+      setIsAuthenticated(true);
+    }
+  };
+
+  const logout = () => {
+    DataService.logoutUser();
+    setAuth(null);
+    setIsAuthenticated(false);
+    
+    toast({
+      title: "Logged Out",
+      description: "You have been logged out successfully",
+      duration: 3000,
+    });
+  };
 
   const updateUserStats = (stats: Partial<UserStats>) => {
     const updatedData = DataService.updateUserStats(stats);
@@ -187,8 +224,44 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   };
 
+  const extendMiningDuration = () => {
+    const { scoins } = userData.userStats;
+    
+    if (scoins < 5) {
+      toast({
+        title: "Extension Failed",
+        description: "You need at least 5 Scoins to extend mining duration.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    try {
+      const updatedData = DataService.extendMiningDuration(scoins);
+      setUserData(updatedData);
+      
+      toast({
+        title: "Mining Extended",
+        description: "Mining duration extended to 24 hours for 5 Scoins",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "Extension Failed",
+        description: error instanceof Error ? error.message : "Failed to extend mining duration",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   const contextValue: CryptoContextProps = {
     userData,
+    auth,
+    isAuthenticated,
+    login,
+    logout,
     updateUserStats,
     addTransaction,
     updateHolding,
@@ -197,7 +270,8 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addScoins,
     addExp,
     resetData,
-    convertScoinsToScr
+    convertScoinsToScr,
+    extendMiningDuration
   };
 
   return (

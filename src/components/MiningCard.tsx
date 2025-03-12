@@ -8,8 +8,9 @@ import {
   Users,
   Share2,
   Info,
-  Repeat,
-  Lock
+  Lock,
+  Clock,
+  Gem
 } from 'lucide-react';
 
 import { 
@@ -21,6 +22,7 @@ import {
 } from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { useCrypto } from '@/contexts/CryptoContext';
 
 interface MiningCardProps {
   onMiningUpdate: (data: {
@@ -46,27 +48,28 @@ const MiningCard: React.FC<MiningCardProps> = ({
   onStatsUpdate
 }) => {
   const { toast } = useToast();
+  const { userData, extendMiningDuration } = useCrypto();
 
   // Mining state
   const [isMining, setIsMining] = useState(false);
-  const [level, setLevel] = useState(1);
-  const [exp, setExp] = useState(0);
-  const [successfulMines, setSuccessfulMines] = useState(0);
-  const [totalAttempts, setTotalAttempts] = useState(0);
-  const [balance, setBalance] = useState(0);
-  const [scoins, setScoins] = useState(0);
-  const [activeMiningTime, setActiveMiningTime] = useState(0);
+  const [level, setLevel] = useState(userData.userStats.level || 1);
+  const [exp, setExp] = useState(userData.userStats.exp || 0);
+  const [successfulMines, setSuccessfulMines] = useState(userData.userStats.successfulMines || 0);
+  const [totalAttempts, setTotalAttempts] = useState(userData.userStats.totalAttempts || 0);
+  const [balance, setBalance] = useState(userData.holdings.find(h => h.symbol === 'SCR')?.amount || 0);
+  const [scoins, setScoins] = useState(userData.userStats.scoins || 0);
+  const [activeMiningTime, setActiveMiningTime] = useState(userData.userStats.activeMiningTime || 0);
   const [successfulAnimation, setSuccessfulAnimation] = useState(false);
   const [miningTimeout, setMiningTimeout] = useState<number | null>(null);
   const [timeInterval, setTimeInterval] = useState<number | null>(null);
   const [isMiningComplete, setIsMiningComplete] = useState(false);
-  const [autoMining, setAutoMining] = useState(true);
   const [currentTask, setCurrentTask] = useState("");
   const [miningDuration, setMiningDuration] = useState(30000); // Default duration
   const [progressTimer, setProgressTimer] = useState<number | null>(null);
   const [progressValue, setProgressValue] = useState(0);
   const [referralLink, setReferralLink] = useState("https://scremycoin.com/ref/user123");
-  const [shareToast, setShareToast] = useState(false);
+  const [isMiningExtended, setIsMiningExtended] = useState(false);
+  const [miningDurationHours, setMiningDurationHours] = useState(12); // Default 12 hours
 
   // Calculate exp required for next level
   const expRequired = calculateExpRequired(level);
@@ -145,17 +148,13 @@ const MiningCard: React.FC<MiningCardProps> = ({
       duration: 3000,
     });
     
-    // Check if we should continue auto-mining
-    if (autoMining && activeMiningTime < MAX_MINING_TIME) {
-      setIsMiningComplete(false);
-      // Start the next mining attempt after a short delay
-      setTimeout(() => {
-        startMining();
-      }, 1500);
-    } else {
-      setIsMiningComplete(true);
-      stopMining();
-    }
+    // Continue mining automatically (always auto-mining)
+    setIsMiningComplete(false);
+    
+    // Start the next mining attempt after a short delay
+    setTimeout(() => {
+      startMining();
+    }, 1500);
     
     // Update parent component with current stats
     onStatsUpdate({
@@ -167,13 +166,26 @@ const MiningCard: React.FC<MiningCardProps> = ({
       balance: newBalance,
       scoins,
       activeMiningTime,
-      autoMining
+      autoMining: true // Always true now
     });
   };
 
   // Start mining function
   const startMining = () => {
     if (isMining) return;
+    
+    // Check if mining time limit is reached
+    const maxTime = isMiningExtended ? (24 * 60 * 60) : (12 * 60 * 60); // 12 or 24 hours in seconds
+    
+    if (activeMiningTime >= maxTime) {
+      toast({
+        title: "Mining Limit Reached",
+        description: `You've reached the ${isMiningExtended ? '24' : '12'} hour mining limit. ${!isMiningExtended ? 'Extend with 5 Scoins or wait for reset.' : 'Please wait for daily reset.'}`,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     
     setIsMining(true);
     setSuccessfulAnimation(false);
@@ -207,10 +219,9 @@ const MiningCard: React.FC<MiningCardProps> = ({
     const timeTracker = window.setInterval(() => {
       setActiveMiningTime(prev => {
         // Check if we've reached the maximum mining time
-        if (prev >= MAX_MINING_TIME) {
-          if (!autoMining) {
-            stopMining();
-          }
+        const maxTime = isMiningExtended ? (24 * 60 * 60) : (12 * 60 * 60); // 12 or 24 hours in seconds
+        if (prev >= maxTime) {
+          stopMining();
           return prev;
         }
         return prev + 1;
@@ -218,6 +229,13 @@ const MiningCard: React.FC<MiningCardProps> = ({
     }, 1000);
     
     setTimeInterval(timeTracker);
+    
+    // Record mining time in localStorage for background processing
+    const currentData = JSON.parse(localStorage.getItem('scremycoin_app_data') || '{}');
+    if (currentData.userStats) {
+      currentData.userStats.lastMiningTimestamp = Date.now();
+      localStorage.setItem('scremycoin_app_data', JSON.stringify(currentData));
+    }
   };
 
   // Stop mining function
@@ -242,29 +260,35 @@ const MiningCard: React.FC<MiningCardProps> = ({
     
     // Notify parent component
     onMiningUpdate({ isMining: false });
+    
+    // Remove mining timestamp from localStorage
+    const currentData = JSON.parse(localStorage.getItem('scremycoin_app_data') || '{}');
+    if (currentData.userStats) {
+      currentData.userStats.lastMiningTimestamp = undefined;
+      localStorage.setItem('scremycoin_app_data', JSON.stringify(currentData));
+    }
   };
 
-  // Toggle auto mining
-  const toggleAutoMining = () => {
-    setAutoMining(!autoMining);
+  // Handle extending mining duration
+  const handleExtendMining = () => {
+    if (userData.userStats.scoins < 5) {
+      toast({
+        title: "Not Enough Scoins",
+        description: "You need 5 Scoins to extend mining duration to 24 hours",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    extendMiningDuration();
+    setIsMiningExtended(true);
+    setMiningDurationHours(24);
     
     toast({
-      title: autoMining ? "Auto-Mining Disabled" : "Auto-Mining Enabled",
-      description: autoMining ? "You'll need to start mining manually after each attempt." : "Mining will automatically continue after each attempt.",
+      title: "Mining Duration Extended",
+      description: "Mining duration extended to 24 hours",
       duration: 3000,
-    });
-    
-    // Update parent component
-    onStatsUpdate({
-      level,
-      exp,
-      expRequired,
-      successfulMines,
-      totalAttempts,
-      balance,
-      scoins,
-      activeMiningTime,
-      autoMining: !autoMining
     });
   };
 
@@ -293,7 +317,6 @@ const MiningCard: React.FC<MiningCardProps> = ({
   // Copy referral link function
   const copyReferralLink = () => {
     navigator.clipboard.writeText(referralLink).then(() => {
-      setShareToast(true);
       toast({
         title: "Referral Link Copied!",
         description: "Share this link with friends to earn 20% of their scoins!",
@@ -338,6 +361,8 @@ const MiningCard: React.FC<MiningCardProps> = ({
     setLevel(1);
     setExp(0);
     setScoins(0);
+    setIsMiningExtended(false);
+    setMiningDurationHours(12);
     
     // Update parent component
     onStatsUpdate({
@@ -349,7 +374,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
       balance: 0,
       scoins: 0,
       activeMiningTime: 0,
-      autoMining
+      autoMining: true
     });
     
     toast({
@@ -379,12 +404,22 @@ const MiningCard: React.FC<MiningCardProps> = ({
       balance,
       scoins,
       activeMiningTime,
-      autoMining
+      autoMining: true // Always auto-mining
     });
   }, []);
+
+  // Update state from context on mount
+  useEffect(() => {
+    setScoins(userData.userStats.scoins || 0);
+    setLevel(userData.userStats.level || 1);
+    setExp(userData.userStats.exp || 0);
+    setSuccessfulMines(userData.userStats.successfulMines || 0);
+    setTotalAttempts(userData.userStats.totalAttempts || 0);
+    setBalance(userData.holdings.find(h => h.symbol === 'SCR')?.amount || 0);
+  }, [userData]);
   
-  // Is 24h mining time reached
-  const isMiningTimeExceeded = activeMiningTime >= MAX_MINING_TIME;
+  // Is mining time limit reached
+  const isMiningTimeExceeded = activeMiningTime >= (isMiningExtended ? (24 * 60 * 60) : (12 * 60 * 60));
   
   // Calculate time remaining for current mining attempt
   const timeRemaining = (miningDuration / 1000) - (progressValue / 100 * (miningDuration / 1000));
@@ -415,20 +450,25 @@ const MiningCard: React.FC<MiningCardProps> = ({
         </div>
         
         <div className="space-y-6">
-          {/* Auto-mining switch */}
+          {/* Mining duration extension */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Repeat className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Auto-Mining</span>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">Mining Duration</span>
             </div>
-            <Button
-              variant={autoMining ? "default" : "outline"}
-              size="sm"
-              onClick={toggleAutoMining}
-              className={autoMining ? "bg-scremy hover:bg-scremy/90" : ""}
-            >
-              {autoMining ? "Enabled" : "Disabled"}
-            </Button>
+            {!isMiningExtended ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExtendMining}
+                className="flex items-center gap-1"
+              >
+                <Gem className="h-3.5 w-3.5 text-amber-400" />
+                <span>Extend to 24h (5 Scoins)</span>
+              </Button>
+            ) : (
+              <span className="text-sm font-medium text-amber-400">Extended (24h)</span>
+            )}
           </div>
           
           {/* Mining level (locked) */}
@@ -519,7 +559,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
             <div className="space-y-1">
               <p className="text-muted-foreground">Scoins Balance</p>
               <p className="font-semibold">
-                {scoins} <span className="text-amber-400">Scoins</span>
+                {userData.userStats.scoins} <span className="text-amber-400">Scoins</span>
               </p>
             </div>
             <div className="space-y-1">
@@ -528,7 +568,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">Time Limit</p>
-              <p className="font-semibold">{formatLongTime(MAX_MINING_TIME)}</p>
+              <p className="font-semibold">{isMiningExtended ? '24 hours' : '12 hours'}</p>
             </div>
           </div>
           
@@ -538,7 +578,7 @@ const MiningCard: React.FC<MiningCardProps> = ({
               <Button 
                 onClick={startMining} 
                 className="bg-scremy hover:bg-scremy/90 text-scremy-foreground"
-                disabled={successfulAnimation || (isMiningComplete && isMiningTimeExceeded && autoMining)}
+                disabled={successfulAnimation || isMiningTimeExceeded}
                 size="lg"
               >
                 <PlayCircle className="mr-2 h-5 w-5" />
@@ -565,7 +605,11 @@ const MiningCard: React.FC<MiningCardProps> = ({
               <p>Mining attempt completed.</p>
             )}
             {isMiningTimeExceeded && (
-              <p className="text-amber-400">24 hour mining limit reached. Click Start Mining to continue.</p>
+              <p className="text-amber-400">
+                {isMiningExtended 
+                  ? '24 hour mining limit reached. Wait for daily reset.'
+                  : '12 hour mining limit reached. Extend with 5 Scoins or wait for reset.'}
+              </p>
             )}
           </div>
         </div>
@@ -575,4 +619,3 @@ const MiningCard: React.FC<MiningCardProps> = ({
 };
 
 export default MiningCard;
-

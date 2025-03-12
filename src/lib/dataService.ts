@@ -42,6 +42,21 @@ export interface MarketData {
   lastUpdated: number;
 }
 
+export interface UserAuth {
+  id: string;
+  email: string;
+  fullName: string;
+  religion?: string;
+  phoneNumber?: string;
+  city?: string;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+  hasCompletedKyc: boolean;
+  pin: string;
+  provider: 'google' | 'telegram' | 'email';
+  lastLogin: number;
+}
+
 // Main user data interface
 export interface UserData {
   userStats: UserStats;
@@ -49,6 +64,7 @@ export interface UserData {
   miningSpaces: MiningSpace[];
   marketData: MarketData[];
   transactions: Transaction[];
+  auth?: UserAuth;
   lastUpdated: number;
 }
 
@@ -75,7 +91,8 @@ const DEFAULT_USER_DATA: UserData = {
     balance: 0,
     scoins: 0,
     activeMiningTime: 0,
-    autoMining: true
+    autoMining: false, // Changed to false as per requirements
+    lastMiningTimestamp: undefined
   },
   holdings: [
     {
@@ -128,6 +145,12 @@ const DEFAULT_USER_DATA: UserData = {
 
 // Local storage key
 const STORAGE_KEY = 'scremycoin_app_data';
+const AUTH_KEY = 'scremycoin_auth';
+
+// Timestamp constants
+const HOUR_IN_MS = 3600000;
+const MAX_MINING_DURATION = 12 * HOUR_IN_MS; // 12 hours in milliseconds
+const EXTENDED_MINING_DURATION = 24 * HOUR_IN_MS; // 24 hours in milliseconds
 
 // Service functions
 export const DataService = {
@@ -152,6 +175,63 @@ export const DataService = {
     } catch (error) {
       console.error('Error saving data to localStorage:', error);
     }
+  },
+
+  // Authentication methods
+  saveAuth: (auth: UserAuth): void => {
+    try {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    } catch (error) {
+      console.error('Error saving auth to localStorage:', error);
+    }
+  },
+
+  getAuth: (): UserAuth | null => {
+    try {
+      const storedAuth = localStorage.getItem(AUTH_KEY);
+      if (storedAuth) {
+        return JSON.parse(storedAuth) as UserAuth;
+      }
+    } catch (error) {
+      console.error('Error loading auth from localStorage:', error);
+    }
+    return null;
+  },
+
+  isLoggedIn: (): boolean => {
+    return DataService.getAuth() !== null;
+  },
+
+  loginUser: (credentials: { email: string; pin: string }): UserAuth | null => {
+    const auth = DataService.getAuth();
+    if (auth && auth.email === credentials.email && auth.pin === credentials.pin) {
+      auth.lastLogin = Date.now();
+      DataService.saveAuth(auth);
+      return auth;
+    }
+    return null;
+  },
+
+  registerUser: (user: Omit<UserAuth, 'id' | 'lastLogin' | 'hasCompletedKyc'>): UserAuth => {
+    const newUser: UserAuth = {
+      ...user,
+      id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      lastLogin: Date.now(),
+      hasCompletedKyc: false
+    };
+    
+    DataService.saveAuth(newUser);
+    
+    // Initialize user data
+    const userData = DataService.initData();
+    userData.auth = newUser;
+    DataService.saveData(userData);
+    
+    return newUser;
+  },
+
+  logoutUser: (): void => {
+    localStorage.removeItem(AUTH_KEY);
   },
 
   // Update user stats
@@ -244,6 +324,27 @@ export const DataService = {
     return updatedData;
   },
 
+  // Extend mining duration by 12 hours for a cost of 5 scoins
+  extendMiningDuration: (scoins: number): UserData => {
+    if (scoins < 5) {
+      throw new Error("Not enough Scoins to extend mining duration");
+    }
+    
+    const currentData = DataService.initData();
+    
+    // Deduct 5 scoins for the extension
+    const updatedData = {
+      ...currentData,
+      userStats: {
+        ...currentData.userStats,
+        scoins: currentData.userStats.scoins - 5
+      }
+    };
+    
+    DataService.saveData(updatedData);
+    return updatedData;
+  },
+
   // Get the current SCR price
   getScrPrice: (): number => {
     const data = DataService.initData();
@@ -256,5 +357,102 @@ export const DataService = {
     const freshData = { ...DEFAULT_USER_DATA };
     DataService.saveData(freshData);
     return freshData;
+  },
+  
+  // Process background mining (called on app load)
+  processPendingMining: (): UserData => {
+    const currentData = DataService.initData();
+    const now = Date.now();
+    
+    // Process last mining session if it was active
+    if (currentData.userStats.lastMiningTimestamp) {
+      const elapsedTime = now - currentData.userStats.lastMiningTimestamp;
+      
+      // If mining was happening while app was closed
+      if (elapsedTime > 0) {
+        // Calculate how much SCR was mined while away
+        // Assuming mining rate is constant based on level
+        const miningRate = 0.0001 * currentData.userStats.level; // SCR per second
+        const maxTime = MAX_MINING_DURATION; // 12 hours in ms
+        const actualTime = Math.min(elapsedTime, maxTime);
+        const scrMined = (actualTime / 1000) * miningRate;
+        
+        // Update balance and stats
+        if (scrMined > 0) {
+          const currentScr = currentData.holdings.find(h => h.symbol === 'SCR')?.amount || 0;
+          
+          // Update SCR holding
+          const updatedHoldings = currentData.holdings.map(h => {
+            if (h.symbol === 'SCR') {
+              return { ...h, amount: h.amount + scrMined };
+            }
+            return h;
+          });
+          
+          // Update mining stats
+          const updatedStats = {
+            ...currentData.userStats,
+            activeMiningTime: currentData.userStats.activeMiningTime + (actualTime / 1000),
+            successfulMines: currentData.userStats.successfulMines + Math.floor(actualTime / 30000), // Assuming each block takes ~30 seconds
+            totalAttempts: currentData.userStats.totalAttempts + Math.floor(actualTime / 30000),
+            lastMiningTimestamp: undefined // Reset timestamp since we've processed it
+          };
+          
+          // Add transaction for the background mining
+          const newTransaction: Transaction = {
+            id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            type: 'mine',
+            amount: scrMined,
+            symbol: 'SCR',
+            timestamp: now,
+            valueUsd: scrMined * DataService.getScrPrice(),
+            status: 'completed'
+          };
+          
+          // Update the user data
+          const updatedData = {
+            ...currentData,
+            userStats: updatedStats,
+            holdings: updatedHoldings,
+            transactions: [newTransaction, ...currentData.transactions].slice(0, 100)
+          };
+          
+          DataService.saveData(updatedData);
+          return updatedData;
+        }
+      }
+    }
+    
+    // Process mining spaces
+    const updatedSpaces = currentData.miningSpaces.map(space => {
+      if (space.active && space.expiresAt) {
+        // If space is active and has an expiration
+        if (space.expiresAt > now) {
+          // Calculate how many scoins were earned while away
+          const elapsedSeconds = (now - (currentData.lastUpdated || now)) / 1000;
+          const scoinsPerHour = 5; // From your constants
+          const scoinsPerSecond = scoinsPerHour / 3600;
+          const newScoins = space.scoinsEarned + (elapsedSeconds * scoinsPerSecond);
+          
+          return { ...space, scoinsEarned: newScoins };
+        } else {
+          // Space has expired, deactivate it
+          return { ...space, active: false, expiresAt: undefined };
+        }
+      }
+      return space;
+    });
+    
+    if (JSON.stringify(updatedSpaces) !== JSON.stringify(currentData.miningSpaces)) {
+      const updatedData = {
+        ...currentData,
+        miningSpaces: updatedSpaces
+      };
+      
+      DataService.saveData(updatedData);
+      return updatedData;
+    }
+    
+    return currentData;
   }
 };

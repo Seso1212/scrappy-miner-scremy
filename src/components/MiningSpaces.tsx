@@ -10,6 +10,7 @@ import {
   SCOINS_PER_HOUR 
 } from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
+import { useCrypto } from '@/contexts/CryptoContext';
 
 interface MiningSpaceProps {
   onMiningUpdate: (data: {
@@ -18,14 +19,15 @@ interface MiningSpaceProps {
     reward?: number;
     isSpace?: boolean;
   }) => void;
-  onScoinsUpdate?: (scoins: number) => void;
 }
 
 const MiningSpaces: React.FC<MiningSpaceProps> = ({ 
-  onMiningUpdate,
-  onScoinsUpdate
+  onMiningUpdate
 }) => {
   const { toast } = useToast();
+  const { userData, updateMiningSpace, addScoins } = useCrypto();
+  
+  // Initialize spaces from userData
   const [spaces, setSpaces] = useState<Array<{
     id: number;
     unlocked: boolean;
@@ -33,24 +35,48 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     active: boolean;
     premium: boolean;
     accruedScoins: number;
-  }>>([
-    { id: 1, unlocked: true, timeRemaining: 0, active: false, premium: false, accruedScoins: 0 },
-    { id: 2, unlocked: false, timeRemaining: 0, active: false, premium: false, accruedScoins: 0 },
-    { id: 3, unlocked: false, timeRemaining: 0, active: false, premium: false, accruedScoins: 0 },
-    { id: 4, unlocked: false, timeRemaining: 0, active: false, premium: false, accruedScoins: 0 },
-    { id: 5, unlocked: false, timeRemaining: 0, active: false, premium: false, accruedScoins: 0 },
-  ]);
+  }>>(userData.miningSpaces.map(space => ({
+    id: space.id,
+    unlocked: space.unlocked,
+    timeRemaining: space.expiresAt ? Math.max(0, Math.floor((space.expiresAt - Date.now()) / 1000)) : 0,
+    active: space.active,
+    premium: space.isPremium,
+    accruedScoins: space.scoinsEarned
+  })));
   
   const [timers, setTimers] = useState<number[]>([]);
   const [scoinTimers, setScoinTimers] = useState<number[]>([]);
-  const [totalScoins, setTotalScoins] = useState(0);
+  const [totalScoins, setTotalScoins] = useState(userData.userStats.scoins || 0);
+
+  // Sync spaces with userData when it changes
+  useEffect(() => {
+    setSpaces(userData.miningSpaces.map(space => ({
+      id: space.id,
+      unlocked: space.unlocked,
+      timeRemaining: space.expiresAt ? Math.max(0, Math.floor((space.expiresAt - Date.now()) / 1000)) : 0,
+      active: space.active,
+      premium: space.isPremium,
+      accruedScoins: space.scoinsEarned
+    })));
+    setTotalScoins(userData.userStats.scoins || 0);
+  }, [userData]);
 
   // Handle watching an ad to unlock a space
   const handleWatchAd = (spaceId: number) => {
     // Award scoins for watching ad
+    addScoins(SCOINS_PER_AD);
     setTotalScoins(prev => prev + SCOINS_PER_AD);
     
-    // Update the space
+    // Calculate expiration time (current time + duration in hours)
+    const expiresAt = Date.now() + (SPACE_AD_DURATION * 60 * 60 * 1000);
+    
+    // Update the space in context
+    updateMiningSpace(spaceId, {
+      unlocked: true,
+      expiresAt
+    });
+    
+    // Update local state
     setSpaces(currentSpaces => 
       currentSpaces.map(space => 
         space.id === spaceId 
@@ -64,15 +90,18 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
       description: `Mining space ${spaceId} has been unlocked for ${SPACE_AD_DURATION} hours. You earned ${SCOINS_PER_AD} scoins!`,
       duration: 3000,
     });
-    
-    // Notify parent component about scoin update
-    if (onScoinsUpdate) {
-      onScoinsUpdate(totalScoins + SCOINS_PER_AD);
-    }
   };
 
   // Purchase premium for a space
   const purchasePremium = (spaceId: number) => {
+    // Update the space in context
+    updateMiningSpace(spaceId, {
+      unlocked: true,
+      isPremium: true,
+      expiresAt: undefined
+    });
+    
+    // Update local state
     setSpaces(currentSpaces => 
       currentSpaces.map(space => 
         space.id === spaceId 
@@ -90,8 +119,15 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
 
   // Start mining in a specific space
   const startSpaceMining = (spaceId: number) => {
-    if (!spaces.find(space => space.id === spaceId)?.unlocked) return;
+    const space = spaces.find(s => s.id === spaceId);
+    if (!space || !space.unlocked) return;
     
+    // Update in context
+    updateMiningSpace(spaceId, {
+      active: true
+    });
+    
+    // Update local state
     setSpaces(currentSpaces => 
       currentSpaces.map(space => 
         space.id === spaceId 
@@ -114,6 +150,11 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
             : space
         )
       );
+      
+      // Also update in context periodically
+      updateMiningSpace(spaceId, {
+        scoinsEarned: spaces.find(s => s.id === spaceId)?.accruedScoins || 0
+      });
     }, 1000); // Update every second
     
     setScoinTimers(prev => [...prev, scoinTimer]);
@@ -134,8 +175,9 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
       // Round the accrued scoins to 2 decimal places
       const collectedScoins = Math.round(space.accruedScoins * 100) / 100;
       
-      // Update total scoins
+      // Update total scoins in context
       if (collectedScoins > 0) {
+        addScoins(collectedScoins);
         setTotalScoins(prev => prev + collectedScoins);
         
         toast({
@@ -143,15 +185,16 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
           description: `You collected ${collectedScoins} scoins from space ${spaceId}.`,
           duration: 3000,
         });
-        
-        // Notify parent component about scoin update
-        if (onScoinsUpdate) {
-          onScoinsUpdate(totalScoins + collectedScoins);
-        }
       }
     }
     
-    // Update the space
+    // Update in context
+    updateMiningSpace(spaceId, {
+      active: false,
+      scoinsEarned: 0
+    });
+    
+    // Update local state
     setSpaces(currentSpaces => 
       currentSpaces.map(space => 
         space.id === spaceId
@@ -184,6 +227,16 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                   : s
             )
           );
+          
+          // If time just expired, update in context too
+          if (space.timeRemaining === 1) {
+            updateMiningSpace(space.id, {
+              unlocked: false,
+              active: false,
+              scoinsEarned: 0,
+              expiresAt: undefined
+            });
+          }
         }, 1000);
       });
     
@@ -345,4 +398,3 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
 };
 
 export default MiningSpaces;
-
