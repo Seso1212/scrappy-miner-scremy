@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,18 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, UserCircle, Mail, Phone, Lock, MapPin, AtSign, BrandTelegram } from 'lucide-react';
+import { Loader2, UserCircle, Mail, Phone, Lock, MapPin, AtSign, MessageCircle } from 'lucide-react';
 import { DataService, UserAuth } from '@/lib/dataService';
 import { useCrypto } from '@/contexts/CryptoContext';
 
-// Authentication page component
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { login } = useCrypto();
   const [isLoggedIn, setIsLoggedIn] = useState(DataService.isLoggedIn());
   
-  // If already logged in, redirect to dashboard
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
@@ -64,7 +61,6 @@ const Auth = () => {
   );
 };
 
-// Sign In Form Component
 const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +78,6 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Validate form
     if (!formData.email || !formData.pin) {
       toast({
         title: "Error",
@@ -93,7 +88,6 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
       return;
     }
     
-    // Attempt login
     setTimeout(() => {
       const user = DataService.loginUser({
         email: formData.email,
@@ -176,7 +170,6 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
   );
 };
 
-// Sign Up Form Component
 const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -202,7 +195,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const verifyEmail = () => {
     setIsLoading(true);
     
-    // Simulate email verification process
     setTimeout(() => {
       setFormData(prev => ({ ...prev, isEmailVerified: true }));
       toast({
@@ -216,7 +208,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const verifyPhone = () => {
     setIsLoading(true);
     
-    // Simulate phone verification process
     setTimeout(() => {
       setFormData(prev => ({ ...prev, isPhoneVerified: true }));
       toast({
@@ -230,7 +221,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const handleGoogleSignUp = () => {
     setIsLoading(true);
     
-    // Simulate Google OAuth
     setTimeout(() => {
       setFormData(prev => ({
         ...prev,
@@ -252,7 +242,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const handleTelegramSignUp = () => {
     setIsLoading(true);
     
-    // Simulate Telegram OAuth
     setTimeout(() => {
       setFormData(prev => ({
         ...prev,
@@ -281,7 +270,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
     
     setIsLoading(true);
     
-    // Validate form for final submission
     if (!formData.email || !formData.fullName || !formData.pin) {
       toast({
         title: "Error",
@@ -312,7 +300,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
       return;
     }
     
-    // Register user
     setTimeout(() => {
       try {
         const user = DataService.registerUser({
@@ -348,7 +335,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {step === 1 ? (
-        // Step 1: Choose authentication method
         <>
           <div className="space-y-4">
             <p className="text-sm text-center text-muted-foreground mb-2">
@@ -389,7 +375,7 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
               onClick={handleTelegramSignUp}
               disabled={isLoading}
             >
-              <BrandTelegram className="mr-2 h-4 w-4" />
+              <MessageCircle className="mr-2 h-4 w-4" />
               Continue with Telegram
             </Button>
             
@@ -448,14 +434,12 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
           </div>
         </>
       ) : (
-        // Step 2: Additional information
         <>
           <div className="space-y-4">
             <p className="text-sm text-center font-medium mb-2">
               Complete your profile (KYC information)
             </p>
             
-            {/* Show email field if not verified */}
             {!formData.isEmailVerified && (
               <div className="space-y-2">
                 <Label htmlFor="verify-email" className="flex justify-between">
@@ -518,7 +502,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
               </div>
             </div>
             
-            {/* Show phone field if not verified */}
             {!formData.isPhoneVerified && (
               <div className="space-y-2">
                 <Label htmlFor="phoneNumber" className="flex justify-between">
