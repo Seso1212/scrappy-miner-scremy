@@ -42,7 +42,7 @@ const Profile = () => {
       firstName: userData.userStats.firstName || '',
       lastName: userData.userStats.lastName || '',
       username: userData.userStats.username || '',
-      religion: userData.userStats.religion || '',
+      countryCode: userData.userStats.countryCode || '',
       phoneNumber: userData.userStats.phoneNumber || '',
       referralCode: userData.userStats.referralCode || '',
     }
@@ -53,7 +53,7 @@ const Profile = () => {
       firstName: data.firstName,
       lastName: data.lastName,
       username: data.username,
-      religion: data.religion,
+      countryCode: data.countryCode,
       phoneNumber: data.phoneNumber,
       referralCode: data.referralCode,
     });
@@ -160,10 +160,10 @@ const Profile = () => {
                     
                     <FormField
                       control={form.control}
-                      name="religion"
+                      name="countryCode"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Religion</FormLabel>
+                          <FormLabel>Country</FormLabel>
                           <FormControl>
                             <Input placeholder="Optional" {...field} />
                           </FormControl>

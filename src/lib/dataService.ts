@@ -53,7 +53,6 @@ export interface UserAuth {
   email: string;
   fullName: string;
   username: string;
-  religion?: string;
   phoneNumber?: string;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;

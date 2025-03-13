@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace, UserAuth } from '@/lib/dataService';
 import { calculateExpRequired } from '@/lib/miningUtils';
@@ -31,40 +30,30 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(DataService.isLoggedIn());
   const { toast } = useToast();
 
-  // Process background mining on app load and every minute
   useEffect(() => {
-    // Process on initial load
     const updatedData = DataService.processPendingMining();
     setUserData(updatedData);
     
-    // Set up interval to process mining regularly
     const interval = setInterval(() => {
       const refreshedData = DataService.processPendingMining();
       setUserData(refreshedData);
-    }, 60000); // Every minute
+    }, 60000);
     
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    // Sync with localStorage on mount
     setUserData(DataService.initData());
     
-    // Update crypto prices continuously with more realistic behavior
     const interval = setInterval(() => {
       const data = DataService.initData();
       
-      // Update market data with real-time-like simulation
       const updatedMarketData = data.marketData.map(coin => {
-        // Use Brownian motion-like price movements
-        const volatility = coin.symbol === 'BTC' ? 2 : coin.symbol === 'ETH' ? 1.8 : 2.5; // SCR is more volatile
-        const trend = (Math.random() - 0.48) * volatility; // Slight upward bias
-        
-        const priceChange = trend * Math.sqrt(30 / 86400); // Scale for 30-second interval
-        const newPrice = Math.max(coin.price * (1 + priceChange / 100), 0.00001); // Prevent negative prices
-        
-        // Calculate 24h change (rolling window simulation)
-        const change24h = coin.change24h * 0.997 + priceChange * 0.003; // Weighted average to simulate 24h window
+        const volatility = coin.symbol === 'BTC' ? 2 : coin.symbol === 'ETH' ? 1.8 : 2.5;
+        const trend = (Math.random() - 0.48) * volatility;
+        const priceChange = trend * Math.sqrt(30 / 86400);
+        const newPrice = Math.max(coin.price * (1 + priceChange / 100), 0.00001);
+        const change24h = coin.change24h * 0.997 + priceChange * 0.003;
         
         return {
           ...coin,
@@ -74,7 +63,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
       });
       
-      // Update holdings values based on new prices
       const updatedHoldings = data.holdings.map(holding => {
         const marketData = updatedMarketData.find(m => m.symbol === holding.symbol);
         const valueUsd = marketData ? marketData.price * holding.amount : holding.valueUsd;
@@ -92,12 +80,11 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       
       DataService.saveData(updatedData);
       setUserData(updatedData);
-    }, 30000); // Update every 30 seconds
+    }, 30000);
     
     return () => clearInterval(interval);
   }, []);
 
-  // Registration method
   const registerUser = (email: string, password: string): boolean => {
     try {
       DataService.registerUser({ 
@@ -110,7 +97,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         provider: 'email'
       });
       
-      // Auto-login after registration
       const authData = DataService.getAuth();
       if (authData) {
         setAuth(authData);
@@ -135,7 +121,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  // Authentication methods
   const login = () => {
     const authData = DataService.getAuth();
     if (authData) {
@@ -186,7 +171,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const currentScr = userData.holdings.find(h => h.symbol === 'SCR')?.amount || 0;
     updateHolding('SCR', currentScr + amount);
     
-    // Add transaction
     addTransaction({
       type: 'mine',
       amount,
@@ -213,7 +197,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const newExp = exp + amount;
     
     if (newExp >= expRequired && level < 10) {
-      // Level up
       updateUserStats({
         level: level + 1,
         exp: newExp - expRequired,
@@ -253,14 +236,11 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
     
-    // Exchange rate: 10 Scoins = 0.1 SCR
     const scrAmount = scoins / 100;
     
-    // Update scoins and SCR balance
     updateUserStats({ scoins: 0 });
     addScr(scrAmount);
     
-    // Add transaction
     addTransaction({
       type: 'convert',
       amount: scrAmount,
