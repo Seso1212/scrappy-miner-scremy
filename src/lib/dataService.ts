@@ -1,4 +1,3 @@
-
 // Data persistence service for ScremyCoin application
 
 // Define types for our data models
@@ -21,6 +20,13 @@ export interface UserStats {
   activeMiningTime: number;
   autoMining: boolean;
   lastMiningTimestamp?: number;
+  profileCompleted: boolean;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  religion?: string;
+  phoneNumber?: string;
+  referralCode?: string;
 }
 
 export interface MiningSpace {
@@ -91,8 +97,12 @@ const DEFAULT_USER_DATA: UserData = {
     balance: 0,
     scoins: 0,
     activeMiningTime: 0,
-    autoMining: true, // Changed to true as per new requirements
-    lastMiningTimestamp: undefined
+    autoMining: true,
+    lastMiningTimestamp: undefined,
+    profileCompleted: false,
+    firstName: '',
+    lastName: '',
+    username: '',
   },
   holdings: [
     {
@@ -456,3 +466,4 @@ export const DataService = {
     return currentData;
   }
 };
+

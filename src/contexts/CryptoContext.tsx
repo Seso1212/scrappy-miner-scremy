@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace, UserAuth } from '@/lib/dataService';
 import { calculateExpRequired } from '@/lib/miningUtils';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface CryptoContextProps {
   userData: UserData;
@@ -100,7 +100,15 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Registration method
   const registerUser = (email: string, password: string): boolean => {
     try {
-      DataService.registerUser(email, password);
+      DataService.registerUser({ 
+        email, 
+        password,
+        fullName: '',
+        username: '',
+        isEmailVerified: false,
+        isPhoneVerified: false,
+        provider: 'email'
+      });
       
       // Auto-login after registration
       const authData = DataService.getAuth();

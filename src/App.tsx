@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import Mining from "./pages/Mining";
 import Market from "./pages/Market";
 import Portfolio from "./pages/Portfolio";
 import Wallet from "./pages/Wallet";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Layout from "./components/Layout";
@@ -108,6 +110,7 @@ const AppRoutes = () => {
           <Route path="/market" element={<Market />} />
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/wallet" element={<Wallet />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

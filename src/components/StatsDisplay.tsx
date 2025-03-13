@@ -7,7 +7,7 @@ import {
   Gem,
   Star
 } from 'lucide-react';
-import { formatNumber, formatTime, MAX_MINING_TIME, calculateExpRequired } from '@/lib/miningUtils';
+import { formatNumber, formatTime, MAX_MINING_TIME, formatFloat } from '@/lib/miningUtils';
 
 interface StatsDisplayProps {
   balance: number;
@@ -27,7 +27,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
   totalAttempts,
   level = 1,
   exp = 0,
-  expRequired = calculateExpRequired(level),
+  expRequired = 100,
   activeMiningTime,
   autoMining = true,
   scoins = 0
@@ -47,7 +47,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </div>
             <h3 className="text-sm font-medium">SCR Balance</h3>
           </div>
-          <p className="text-2xl font-bold">{balance.toFixed(4)}</p>
+          <p className="text-2xl font-bold">{formatFloat(balance, 4)}</p>
           <p className="text-xs text-muted-foreground">SCR</p>
         </div>
         
@@ -109,4 +109,3 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
 };
 
 export default StatsDisplay;
-

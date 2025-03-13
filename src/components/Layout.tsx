@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Home, Pickaxe, BarChart3, Wallet, LayoutGrid, Menu, X } from 'lucide-react';
+import { Home, Pickaxe, BarChart3, Wallet, LayoutGrid, Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCrypto } from '@/contexts/CryptoContext';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ const Layout = () => {
     { path: '/market', icon: <BarChart3 className="w-5 h-5" />, label: 'Market' },
     { path: '/portfolio', icon: <LayoutGrid className="w-5 h-5" />, label: 'Portfolio' },
     { path: '/wallet', icon: <Wallet className="w-5 h-5" />, label: 'Wallet' },
+    { path: '/profile', icon: <User className="w-5 h-5" />, label: 'Profile' },
   ];
   
   const scrBalance = userData.holdings.find(h => h.symbol === 'SCR')?.amount || 0;
