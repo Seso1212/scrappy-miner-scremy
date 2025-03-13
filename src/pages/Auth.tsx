@@ -67,7 +67,7 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    pin: ''
+    password: ''
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +79,7 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
     e.preventDefault();
     setIsLoading(true);
     
-    if (!formData.email || !formData.pin) {
+    if (!formData.email || !formData.password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -92,7 +92,7 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
     setTimeout(() => {
       const user = DataService.loginUser({
         email: formData.email,
-        pin: formData.pin
+        password: formData.password
       });
       
       if (user) {
@@ -104,7 +104,7 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
       } else {
         toast({
           title: "Login Failed",
-          description: "Invalid email or PIN",
+          description: "Invalid email or password",
           variant: "destructive"
         });
       }
@@ -133,19 +133,18 @@ const SignInForm = ({ onSuccess }: { onSuccess: () => void }) => {
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="pin">PIN</Label>
+        <Label htmlFor="password">Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            id="pin" 
-            name="pin" 
+            id="password" 
+            name="password" 
             type="password" 
-            placeholder="At least 4 digits" 
+            placeholder="Your password" 
             className="pl-10"
-            value={formData.pin}
+            value={formData.password}
             onChange={handleChange}
             disabled={isLoading}
-            minLength={4}
             required
           />
         </div>
@@ -185,15 +184,19 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
     confirmPassword: '',
     religion: '',
     phoneNumber: '',
-    city: '',
-    pin: '',
-    confirmPin: '',
     provider: 'email' as UserAuth['provider'],
     isEmailVerified: false,
     isPhoneVerified: false,
   });
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // List of all religions for dropdown
+  const religions = [
+    "Christianity", "Islam", "Hinduism", "Buddhism", "Judaism", 
+    "Sikhism", "Baha'i", "Jainism", "Shinto", "Taoism", 
+    "Zoroastrianism", "Traditional/Folk", "Atheism", "Agnosticism", "Other"
+  ];
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -232,9 +235,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
         ...prev,
         provider: 'google',
         email: 'user@gmail.com',
-        firstName: 'Google',
-        lastName: 'User',
-        fullName: 'Google User',
         isEmailVerified: true
       }));
       setStep(2);
@@ -254,9 +254,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
       setFormData(prev => ({
         ...prev,
         provider: 'telegram',
-        firstName: 'Telegram',
-        lastName: 'User',
-        fullName: 'Telegram User',
         phoneNumber: '+1234567890',
         isPhoneVerified: true
       }));
@@ -290,16 +287,32 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
     };
   };
   
+  const validateUsername = (username: string) => {
+    if (username.length < 4) {
+      return {
+        isValid: false,
+        message: "Username must be at least 4 characters long"
+      };
+    }
+    
+    // In a real app, you would check if the username is unique
+    // Here we'll simulate this
+    return {
+      isValid: true,
+      message: ""
+    };
+  };
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (step === 1) {
       // Basic validation for step 1
       if (formData.provider === 'email') {
-        if (!formData.email || !formData.firstName || !formData.lastName || !formData.username) {
+        if (!formData.email) {
           toast({
             title: "Error",
-            description: "Please fill in all required fields",
+            description: "Please provide an email address",
             variant: "destructive"
           });
           return;
@@ -340,77 +353,64 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
     }
     
     if (step === 2) {
-      // Move to PIN setup step
-      setStep(3);
-      return;
-    }
-    
-    // Step 3: PIN setup and final submission
-    setIsLoading(true);
-    
-    if (!formData.pin) {
-      toast({
-        title: "Error",
-        description: "Please enter a PIN",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    if (formData.pin !== formData.confirmPin) {
-      toast({
-        title: "Error",
-        description: "PINs do not match",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    if (formData.pin.length < 4) {
-      toast({
-        title: "Error",
-        description: "PIN must be at least 4 digits",
-        variant: "destructive"
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    setTimeout(() => {
-      try {
-        // Combine first and last name for the fullName field
-        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-        
-        const user = DataService.registerUser({
-          email: formData.email,
-          fullName: fullName,
-          religion: formData.religion || undefined,
-          phoneNumber: formData.phoneNumber || undefined,
-          city: formData.city || undefined, 
-          pin: formData.pin,
-          provider: formData.provider,
-          isEmailVerified: formData.isEmailVerified,
-          isPhoneVerified: formData.isPhoneVerified
-        });
-        
+      // Validate step 2 fields
+      if (!formData.firstName || !formData.lastName || !formData.username) {
         toast({
-          title: "Account Created",
-          description: "Welcome to ScremyCoin!",
-        });
-        
-        onSuccess();
-      } catch (error) {
-        toast({
-          title: "Registration Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred",
+          title: "Error",
+          description: "Please fill in all required fields",
           variant: "destructive"
         });
+        return;
       }
       
-      setIsLoading(false);
-    }, 1000);
+      // Username validation
+      const { isValid, message } = validateUsername(formData.username);
+      if (!isValid) {
+        toast({
+          title: "Username Error",
+          description: message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Submit final data
+      setIsLoading(true);
+      
+      setTimeout(() => {
+        try {
+          // Combine first and last name for the fullName field
+          const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+          
+          const user = DataService.registerUser({
+            email: formData.email,
+            fullName: fullName,
+            username: formData.username,
+            religion: formData.religion || undefined,
+            phoneNumber: formData.phoneNumber || undefined,
+            password: formData.password,
+            provider: formData.provider,
+            isEmailVerified: formData.isEmailVerified,
+            isPhoneVerified: formData.isPhoneVerified
+          });
+          
+          toast({
+            title: "Account Created",
+            description: "Welcome to ScremyCoin!",
+          });
+          
+          onSuccess();
+        } catch (error) {
+          toast({
+            title: "Registration Failed",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
+            variant: "destructive"
+          });
+        }
+        
+        setIsLoading(false);
+      }, 1000);
+    }
   };
   
   const renderStepOne = () => (
@@ -466,59 +466,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="firstName">First Name*</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              id="firstName" 
-              name="firstName" 
-              placeholder="John" 
-              className="pl-10"
-              value={formData.firstName}
-              onChange={handleChange}
-              disabled={isLoading}
-              required
-            />
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name*</Label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              id="lastName" 
-              name="lastName" 
-              placeholder="Doe" 
-              className="pl-10"
-              value={formData.lastName}
-              onChange={handleChange}
-              disabled={isLoading}
-              required
-            />
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="username">Username*</Label>
-        <div className="relative">
-          <AtSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            id="username" 
-            name="username" 
-            placeholder="johndoe" 
-            className="pl-10"
-            value={formData.username}
-            onChange={handleChange}
-            disabled={isLoading}
-            required
-          />
-        </div>
-      </div>
-      
       <div className="space-y-2">
         <Label htmlFor="signup-email">Email*</Label>
         <div className="relative">
@@ -533,22 +480,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
             onChange={handleChange}
             disabled={isLoading}
             required
-          />
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="referralCode">Referral Code (Optional)</Label>
-        <div className="relative">
-          <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            id="referralCode" 
-            name="referralCode" 
-            placeholder="Enter referral code" 
-            className="pl-10"
-            value={formData.referralCode}
-            onChange={handleChange}
-            disabled={isLoading}
           />
         </div>
       </div>
@@ -610,70 +541,78 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
   
   const renderStepTwo = () => (
     <div className="space-y-4">
-      <p className="text-sm text-center font-medium mb-2">
-        Complete your profile (KYC information)
+      <p className="text-sm text-center font-medium mb-4">
+        Complete your profile
       </p>
       
-      {!formData.isEmailVerified && (
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="verify-email" className="flex justify-between">
-            <span>Email</span>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="sm" 
-              onClick={verifyEmail}
-              disabled={isLoading || !formData.email}
-              className="h-auto py-0 px-2 text-xs"
-            >
-              Verify
-            </Button>
-          </Label>
+          <Label htmlFor="firstName">First Name*</Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              id="verify-email" 
-              name="email" 
-              type="email" 
-              placeholder="yourname@example.com" 
+              id="firstName" 
+              name="firstName" 
+              placeholder="John" 
               className="pl-10"
-              value={formData.email}
+              value={formData.firstName}
               onChange={handleChange}
-              disabled={isLoading || formData.isEmailVerified}
+              disabled={isLoading}
+              required
             />
           </div>
-          {formData.isEmailVerified && (
-            <p className="text-xs text-green-500">Email verified</p>
-          )}
         </div>
-      )}
-      
-      <div className="space-y-2">
-        <Label htmlFor="religion">Religion (Optional)</Label>
-        <Input 
-          id="religion" 
-          name="religion" 
-          placeholder="Your religion" 
-          value={formData.religion}
-          onChange={handleChange}
-          disabled={isLoading}
-        />
+        
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name*</Label>
+          <div className="relative">
+            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              id="lastName" 
+              name="lastName" 
+              placeholder="Doe" 
+              className="pl-10"
+              value={formData.lastName}
+              onChange={handleChange}
+              disabled={isLoading}
+              required
+            />
+          </div>
+        </div>
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="city">City (Optional)</Label>
+        <Label htmlFor="username">Username* (at least 4 characters)</Label>
         <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <AtSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            id="city" 
-            name="city" 
-            placeholder="Your city" 
+            id="username" 
+            name="username" 
+            placeholder="johndoe" 
             className="pl-10"
-            value={formData.city}
+            value={formData.username}
             onChange={handleChange}
             disabled={isLoading}
+            required
           />
         </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="religion">Religion</Label>
+        <select
+          id="religion"
+          name="religion"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          value={formData.religion}
+          onChange={handleChange}
+          disabled={isLoading}
+        >
+          <option value="">Select your religion</option>
+          {religions.map(religion => (
+            <option key={religion} value={religion}>{religion}</option>
+          ))}
+        </select>
       </div>
       
       {!formData.isPhoneVerified && (
@@ -709,73 +648,20 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
         </div>
       )}
       
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Continue to PIN Setup
-          </>
-        ) : (
-          <>Continue to PIN Setup</>
-        )}
-      </Button>
-    </div>
-  );
-  
-  const renderStepThree = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-center font-medium mb-4">
-        Set up your PIN for app access
-      </p>
-      
-      <div className="p-4 bg-muted/50 rounded-lg mb-4">
-        <p className="text-sm text-center mb-2">
-          Your PIN will be used to access the app each time you open it
-        </p>
-        <div className="flex justify-center">
-          <Lock className="h-16 w-16 text-primary opacity-70" />
-        </div>
-      </div>
-      
       <div className="space-y-2">
-        <Label htmlFor="pin">PIN (At least 4 digits)*</Label>
+        <Label htmlFor="referralCode">Referral Code (Optional)</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            id="pin" 
-            name="pin" 
-            type="password" 
-            placeholder="Enter PIN" 
+            id="referralCode" 
+            name="referralCode" 
+            placeholder="Enter referral code" 
             className="pl-10"
-            value={formData.pin}
+            value={formData.referralCode}
             onChange={handleChange}
             disabled={isLoading}
-            minLength={4}
-            required
           />
         </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="confirmPin">Confirm PIN*</Label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            id="confirmPin" 
-            name="confirmPin" 
-            type="password" 
-            placeholder="Confirm PIN" 
-            className="pl-10"
-            value={formData.confirmPin}
-            onChange={handleChange}
-            disabled={isLoading}
-            minLength={4}
-            required
-          />
-        </div>
-        {formData.pin && formData.confirmPin && formData.pin !== formData.confirmPin && (
-          <p className="text-xs text-red-500">PINs do not match</p>
-        )}
       </div>
       
       <div className="flex items-center space-x-2 pt-2">
@@ -802,7 +688,6 @@ const SignUpForm = ({ onSuccess }: { onSuccess: () => void }) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       {step === 1 && renderStepOne()}
       {step === 2 && renderStepTwo()}
-      {step === 3 && renderStepThree()}
     </form>
   );
 };

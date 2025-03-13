@@ -41,20 +41,26 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Sync with localStorage on mount
     setUserData(DataService.initData());
     
-    // Update crypto prices continuously
+    // Update crypto prices continuously with more realistic behavior
     const interval = setInterval(() => {
       const data = DataService.initData();
       
-      // Update market data
+      // Update market data with real-time-like simulation
       const updatedMarketData = data.marketData.map(coin => {
-        // Get real-time data from API (simulated here)
-        // In a real app, you would fetch from a cryptocurrency API
-        const priceChange = (Math.random() * 3) - 1.5; // -1.5% to +1.5%
-        const newPrice = coin.price * (1 + priceChange / 100);
+        // Use Brownian motion-like price movements
+        const volatility = coin.symbol === 'BTC' ? 2 : coin.symbol === 'ETH' ? 1.8 : 2.5; // SCR is more volatile
+        const trend = (Math.random() - 0.48) * volatility; // Slight upward bias
+        
+        const priceChange = trend * Math.sqrt(30 / 86400); // Scale for 30-second interval
+        const newPrice = Math.max(coin.price * (1 + priceChange / 100), 0.00001); // Prevent negative prices
+        
+        // Calculate 24h change (rolling window simulation)
+        const change24h = coin.change24h * 0.997 + priceChange * 0.003; // Weighted average to simulate 24h window
+        
         return {
           ...coin,
           price: newPrice,
-          change24h: coin.change24h + (priceChange / 8), // Slightly adjust 24h change
+          change24h: change24h,
           lastUpdated: Date.now()
         };
       });
@@ -146,12 +152,6 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addScoins = (amount: number) => {
     updateUserStats({ scoins: (userData.userStats.scoins || 0) + amount });
-    
-    toast({
-      title: "Scoins Earned",
-      description: `You earned ${amount} Scoins`,
-      duration: 3000,
-    });
   };
 
   const addExp = (amount: number) => {

@@ -13,7 +13,7 @@ import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Layout from "./components/Layout";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const queryClient = new QueryClient();
 
@@ -30,38 +30,33 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // App Component
 const AppRoutes = () => {
-  const { isAuthenticated, userData } = useCrypto();
+  const { userData } = useCrypto();
+  const isInitialMount = useRef(true);
   
-  // Set up background processing for mining when app loads
+  // Set up background processing for mining - runs only on initial mount
   useEffect(() => {
-    // Check if any mining operations are active
-    if (userData && userData.userStats.lastMiningTimestamp) {
-      // Record current timestamp when app is loaded to track mining time
-      const now = Date.now();
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
       
-      // Update last mining timestamp in localStorage
-      const updatedUserData = {
-        ...userData,
-        userStats: {
-          ...userData.userStats,
-          lastMiningTimestamp: now
+      // Set up departure handler for when app is closed
+      const handleBeforeUnload = () => {
+        const currentData = JSON.parse(localStorage.getItem('scremycoin_app_data') || '{}');
+        if (currentData.userStats) {
+          // Record the current timestamp when app is closed
+          currentData.userStats.lastMiningTimestamp = Date.now();
+          localStorage.setItem('scremycoin_app_data', JSON.stringify(currentData));
         }
       };
       
-      // Store updated timestamp
-      localStorage.setItem('scremycoin_app_data', JSON.stringify(updatedUserData));
+      // Add event listeners for app closure
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        // Also run the handler on component unmount (though this is unlikely to happen in a SPA)
+        handleBeforeUnload();
+      };
     }
-    
-    // Clean up function for when app is closed/reloaded
-    return () => {
-      // This runs when component unmounts (app closes)
-      // Record mining was happening when app closed
-      const currentData = JSON.parse(localStorage.getItem('scremycoin_app_data') || '{}');
-      if (currentData.userStats && currentData.userStats.autoMining !== false) {
-        currentData.userStats.lastMiningTimestamp = Date.now();
-        localStorage.setItem('scremycoin_app_data', JSON.stringify(currentData));
-      }
-    };
   }, []);
   
   return (
@@ -69,7 +64,7 @@ const AppRoutes = () => {
       <Routes>
         {/* Public routes */}
         <Route path="/auth" element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Auth />
+          <Auth />
         } />
         
         {/* Protected routes */}

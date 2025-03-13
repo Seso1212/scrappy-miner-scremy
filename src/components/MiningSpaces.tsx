@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Lock, Eye, Award, Gem } from 'lucide-react';
+import { Clock, Play, Lock, Eye, Award, Gem, Plus } from 'lucide-react';
 import { 
   formatTime, 
   MAX_SPACE_MINING_TIME, 
@@ -87,33 +87,17 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     
     toast({
       title: "Space Unlocked!",
-      description: `Mining space ${spaceId} has been unlocked for ${SPACE_AD_DURATION} hours. You earned ${SCOINS_PER_AD} scoins!`,
+      description: `Mining space ${spaceId} has been unlocked for ${SPACE_AD_DURATION} hours.`,
       duration: 3000,
     });
   };
 
   // Purchase premium for a space
-  const purchasePremium = (spaceId: number) => {
-    // Update the space in context
-    updateMiningSpace(spaceId, {
-      unlocked: true,
-      isPremium: true,
-      expiresAt: undefined
-    });
-    
-    // Update local state
-    setSpaces(currentSpaces => 
-      currentSpaces.map(space => 
-        space.id === spaceId 
-          ? { ...space, unlocked: true, premium: true, timeRemaining: 0 } 
-          : space
-      )
-    );
-    
+  const handlePremiumOffer = () => {
     toast({
-      title: "Premium Space Unlocked!",
-      description: `Mining space ${spaceId} has been permanently unlocked with premium.`,
-      duration: 3000,
+      title: "Premium Offer",
+      description: "Buy SCR worth $10 to get an extra space and 7000 XP!",
+      duration: 5000,
     });
   };
 
@@ -143,18 +127,22 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     
     // Set up scoin accrual timer for this space
     const scoinTimer = window.setInterval(() => {
+      // Calculate the amount of scoins earned per second
+      const scoinsPerSecond = SCOINS_PER_HOUR / 3600;
+      
+      // Update local state
       setSpaces(currentSpaces => 
         currentSpaces.map(space => 
           space.id === spaceId && space.active
-            ? { ...space, accruedScoins: space.accruedScoins + (SCOINS_PER_HOUR / 60 / 60) }
+            ? { ...space, accruedScoins: space.accruedScoins + scoinsPerSecond }
             : space
         )
       );
       
-      // Also update in context periodically
-      updateMiningSpace(spaceId, {
-        scoinsEarned: spaces.find(s => s.id === spaceId)?.accruedScoins || 0
-      });
+      // Add scoins directly to user stats every second
+      addScoins(scoinsPerSecond);
+      setTotalScoins(prev => prev + scoinsPerSecond);
+      
     }, 1000); // Update every second
     
     setScoinTimers(prev => [...prev, scoinTimer]);
@@ -168,26 +156,6 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
 
   // Stop mining in a specific space
   const stopSpaceMining = (spaceId: number) => {
-    // First, get the space to collect its accrued scoins
-    const space = spaces.find(s => s.id === spaceId);
-    
-    if (space) {
-      // Round the accrued scoins to 2 decimal places
-      const collectedScoins = Math.round(space.accruedScoins * 100) / 100;
-      
-      // Update total scoins in context
-      if (collectedScoins > 0) {
-        addScoins(collectedScoins);
-        setTotalScoins(prev => prev + collectedScoins);
-        
-        toast({
-          title: "Scoins Collected!",
-          description: `You collected ${collectedScoins} scoins from space ${spaceId}.`,
-          duration: 3000,
-        });
-      }
-    }
-    
     // Update in context
     updateMiningSpace(spaceId, {
       active: false,
@@ -206,6 +174,12 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     onMiningUpdate({ 
       isMining: false,
       isSpace: true
+    });
+    
+    toast({
+      title: "Mining Stopped",
+      description: `Mining in space ${spaceId} has been stopped.`,
+      duration: 3000,
     });
   };
 
@@ -259,7 +233,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4 text-center">
-        Watch ads or upgrade to premium to unlock mining spaces that generate Scoins
+        Watch ads to unlock mining spaces that automatically generate Scoins
       </p>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -307,13 +281,17 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                       onClick={() => startSpaceMining(space.id)}
                     >
                       <Play className="h-4 w-4 mr-1" />
-                      Mine Scoins
+                      Start Mining
                     </Button>
                   ) : (
                     <div className="space-y-2 w-full">
                       <div className="flex items-center justify-between text-xs">
-                        <span>Scoins accrued:</span>
-                        <span className="font-medium">{Math.floor(space.accruedScoins * 100) / 100}</span>
+                        <span>Mining active:</span>
+                        <span className="font-medium text-green-500">✓</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span>Rate:</span>
+                        <span className="font-medium">{SCOINS_PER_HOUR} Scoins/hour</span>
                       </div>
                       <Button 
                         size="sm" 
@@ -321,7 +299,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                         className="w-full"
                         onClick={() => stopSpaceMining(space.id)}
                       >
-                        Collect & Stop
+                        Stop Mining
                       </Button>
                     </div>
                   )
@@ -334,12 +312,12 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                       onClick={() => handleWatchAd(space.id)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      Watch Ad (+{SCOINS_PER_AD} scoins)
+                      Watch Ad
                     </Button>
                     <Button 
                       size="sm" 
                       className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                      onClick={() => purchasePremium(space.id)}
+                      onClick={handlePremiumOffer}
                     >
                       <Award className="h-4 w-4 mr-1" />
                       Upgrade to Premium
@@ -358,31 +336,34 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                   Mine Scoins (Free)
                 </Button>
               ) : (
-                <>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Lock className="h-3 w-3" />
-                    <span>Locked</span>
-                  </div>
-                  <div className="space-y-2 w-full mt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => handleWatchAd(space.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Watch Ad (+{SCOINS_PER_AD} scoins)
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                      onClick={() => purchasePremium(space.id)}
-                    >
-                      <Award className="h-4 w-4 mr-1" />
-                      Upgrade to Premium
-                    </Button>
-                  </div>
-                </>
+                space.id === 5 ? (
+                  <Button 
+                    size="sm" 
+                    className="mt-2 bg-amber-500 hover:bg-amber-600 text-white"
+                    onClick={handlePremiumOffer}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Premium Space
+                  </Button>
+                ) : (
+                  <>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      <span>Locked</span>
+                    </div>
+                    <div className="space-y-2 w-full mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleWatchAd(space.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Watch Ad
+                      </Button>
+                    </div>
+                  </>
+                )
               )
             )}
           </div>
@@ -390,8 +371,8 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
       </div>
       
       <div className="flex flex-col items-center text-xs text-muted-foreground mt-4 gap-1">
-        <p>Premium users can unlock all spaces permanently</p>
-        <p>Each space earns {SCOINS_PER_HOUR} Scoins per hour of active mining</p>
+        <p>Premium users get permanently unlocked spaces</p>
+        <p>Mining continues even when you leave the app!</p>
       </div>
     </div>
   );

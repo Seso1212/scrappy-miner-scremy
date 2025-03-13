@@ -46,13 +46,13 @@ export interface UserAuth {
   id: string;
   email: string;
   fullName: string;
+  username: string;
   religion?: string;
   phoneNumber?: string;
-  city?: string;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   hasCompletedKyc: boolean;
-  pin: string;
+  password: string;
   provider: 'google' | 'telegram' | 'email';
   lastLogin: number;
 }
@@ -91,7 +91,7 @@ const DEFAULT_USER_DATA: UserData = {
     balance: 0,
     scoins: 0,
     activeMiningTime: 0,
-    autoMining: false, // Changed to false as per requirements
+    autoMining: true, // Changed to true as per new requirements
     lastMiningTimestamp: undefined
   },
   holdings: [
@@ -202,9 +202,9 @@ export const DataService = {
     return DataService.getAuth() !== null;
   },
 
-  loginUser: (credentials: { email: string; pin: string }): UserAuth | null => {
+  loginUser: (credentials: { email: string; password: string }): UserAuth | null => {
     const auth = DataService.getAuth();
-    if (auth && auth.email === credentials.email && auth.pin === credentials.pin) {
+    if (auth && auth.email === credentials.email && auth.password === credentials.password) {
       auth.lastLogin = Date.now();
       DataService.saveAuth(auth);
       return auth;
@@ -324,7 +324,7 @@ export const DataService = {
     return updatedData;
   },
 
-  // Extend mining duration by 12 hours for a cost of 5 scoins
+  // Extend mining duration to 24 hours for a cost of 5 scoins
   extendMiningDuration: (scoins: number): UserData => {
     if (scoins < 5) {
       throw new Error("Not enough Scoins to extend mining duration");
