@@ -70,7 +70,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ onComplete }) => {
       firstName,
       lastName,
       username,
-      country,
+      countryCode: country, // Fixed: changed 'country' to 'countryCode' to match UserStats type
       phoneNumber: phoneNumber || undefined,
       referralCode: referralCode || undefined,
       profileCompleted: true
