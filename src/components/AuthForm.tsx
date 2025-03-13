@@ -26,7 +26,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { registerUser, login } = useCrypto();
+  const { registerUser, loginUser } = useCrypto();
 
   // Password validation
   const validatePassword = (password: string): boolean => {
@@ -96,9 +96,17 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
       return;
     }
     
-    // Temporarily auto-login for demo
-    login();
-    onComplete();
+    // Attempt to log in with credentials
+    const success = loginUser({
+      email: loginEmail,
+      password: loginPassword
+    });
+    
+    if (success) {
+      onComplete();
+    } else {
+      setLoginError('Invalid email or password');
+    }
   };
 
   // Social login
@@ -106,7 +114,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
     console.log(`Login with ${provider}`);
     
     // For demo, just log in without actual OAuth
-    login();
+    loginUser({ email: 'demo@example.com', password: 'Demo123!' });
     onComplete();
   };
 

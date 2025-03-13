@@ -10,6 +10,7 @@ interface CryptoContextProps {
   login: () => void;
   logout: () => void;
   registerUser: (email: string, password: string) => boolean;
+  loginUser: (credentials: { email: string; password: string }) => boolean;
   updateUserStats: (stats: Partial<UserStats>) => void;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   updateHolding: (symbol: string, amount: number) => void;
@@ -114,6 +115,40 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       toast({
         title: "Registration Failed",
         description: error instanceof Error ? error.message : "Failed to register user",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return false;
+    }
+  };
+
+  const loginUser = (credentials: { email: string; password: string }): boolean => {
+    try {
+      const authResult = DataService.loginUser(credentials);
+      if (authResult) {
+        setAuth(authResult);
+        setIsAuthenticated(true);
+        
+        toast({
+          title: "Login Successful",
+          description: "Welcome back to ScremyCoin!",
+          duration: 3000,
+        });
+        
+        return true;
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "Invalid email or password",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return false;
+      }
+    } catch (error) {
+      toast({
+        title: "Login Failed",
+        description: error instanceof Error ? error.message : "Failed to login",
         variant: "destructive",
         duration: 3000,
       });
@@ -296,6 +331,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     login,
     logout,
     registerUser,
+    loginUser,
     updateUserStats,
     addTransaction,
     updateHolding,
