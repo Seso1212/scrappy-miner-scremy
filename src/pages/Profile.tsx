@@ -30,11 +30,15 @@ import { useCrypto } from '@/contexts/CryptoContext';
 import { User, Settings, Award, FileText, Share2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { formatTime } from '@/lib/miningUtils';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import DeleteAccountDialog from '@/components/DeleteAccountDialog';
 
 const Profile = () => {
   const { userData, updateUserStats, addExp } = useCrypto();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   
   // Profile form
   const form = useForm({
@@ -313,7 +317,7 @@ const Profile = () => {
                     <h3 className="font-medium">Change Password</h3>
                     <p className="text-sm text-muted-foreground">Update your account password</p>
                   </div>
-                  <Button variant="outline">Change</Button>
+                  <Button variant="outline" onClick={() => setChangePasswordOpen(true)}>Change</Button>
                 </div>
                 
                 <div className="flex items-center justify-between pb-4">
@@ -321,7 +325,12 @@ const Profile = () => {
                     <h3 className="font-medium">Delete Account</h3>
                     <p className="text-sm text-muted-foreground">Permanently delete your account and data</p>
                   </div>
-                  <Button variant="destructive">Delete</Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setDeleteAccountOpen(true)}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -394,6 +403,17 @@ const Profile = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Dialogs */}
+      <ChangePasswordDialog 
+        open={changePasswordOpen} 
+        onOpenChange={setChangePasswordOpen} 
+      />
+      
+      <DeleteAccountDialog 
+        open={deleteAccountOpen} 
+        onOpenChange={setDeleteAccountOpen}
+      />
     </div>
   );
 };
