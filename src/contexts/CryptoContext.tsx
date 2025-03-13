@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace, UserAuth } from '@/lib/dataService';
 import { calculateExpRequired } from '@/lib/miningUtils';
 import { useToast } from '@/components/ui/use-toast';
-import { useNavigate } from 'react-router-dom';
 
 interface CryptoContextProps {
   userData: UserData;
@@ -11,6 +10,7 @@ interface CryptoContextProps {
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
+  registerUser: (email: string, password: string) => boolean;
   updateUserStats: (stats: Partial<UserStats>) => void;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
   updateHolding: (symbol: string, amount: number) => void;
@@ -31,10 +31,19 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(DataService.isLoggedIn());
   const { toast } = useToast();
 
-  // Process background mining on app load
+  // Process background mining on app load and every minute
   useEffect(() => {
+    // Process on initial load
     const updatedData = DataService.processPendingMining();
     setUserData(updatedData);
+    
+    // Set up interval to process mining regularly
+    const interval = setInterval(() => {
+      const refreshedData = DataService.processPendingMining();
+      setUserData(refreshedData);
+    }, 60000); // Every minute
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -88,12 +97,48 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return () => clearInterval(interval);
   }, []);
 
+  // Registration method
+  const registerUser = (email: string, password: string): boolean => {
+    try {
+      DataService.registerUser(email, password);
+      
+      // Auto-login after registration
+      const authData = DataService.getAuth();
+      if (authData) {
+        setAuth(authData);
+        setIsAuthenticated(true);
+      }
+      
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been created successfully",
+        duration: 3000,
+      });
+      
+      return true;
+    } catch (error) {
+      toast({
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : "Failed to register user",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return false;
+    }
+  };
+
   // Authentication methods
   const login = () => {
     const authData = DataService.getAuth();
     if (authData) {
       setAuth(authData);
       setIsAuthenticated(true);
+      
+      toast({
+        title: "Login Successful",
+        description: "Welcome back to ScremyCoin!",
+        duration: 3000,
+      });
     }
   };
 
@@ -262,6 +307,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     isAuthenticated,
     login,
     logout,
+    registerUser,
     updateUserStats,
     addTransaction,
     updateHolding,

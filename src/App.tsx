@@ -1,9 +1,8 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CryptoProvider, useCrypto } from "./contexts/CryptoContext";
 import Dashboard from "./pages/Dashboard";
 import Mining from "./pages/Mining";
@@ -15,22 +14,36 @@ import Auth from "./pages/Auth";
 import Layout from "./components/Layout";
 import { useEffect, useRef } from "react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  },
+});
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useCrypto();
+  const { isAuthenticated, userData } = useCrypto();
   
+  // Check if both authenticated and profile is complete
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+  
+  // If authenticated but profile is not complete, redirect to profile setup
+  if (isAuthenticated && !userData.userStats.profileCompleted && window.location.pathname !== "/auth/profile") {
+    return <Navigate to="/auth/profile" replace />;
   }
   
   return <>{children}</>;
 };
 
-// App Component
-const AppRoutes = () => {
+// Persistent Mining Handler
+const PersistentMiningHandler = () => {
   const { userData } = useCrypto();
+  const location = useLocation();
   const isInitialMount = useRef(true);
   
   // Set up background processing for mining - runs only on initial mount
@@ -59,13 +72,30 @@ const AppRoutes = () => {
     }
   }, []);
   
+  // Log route changes but keep mining active
+  useEffect(() => {
+    console.log("Route changed to:", location.pathname);
+    // We don't stop mining on route changes - mining continues in the background
+    
+    // Check and process any background mining when routes change
+    const currentData = JSON.parse(localStorage.getItem('scremycoin_app_data') || '{}');
+    if (currentData.userStats && currentData.userStats.lastMiningTimestamp) {
+      // We'll keep the timestamp - processing happens in the CryptoContext
+    }
+  }, [location.pathname]);
+  
+  return null;
+};
+
+// App Component
+const AppRoutes = () => {
   return (
     <BrowserRouter>
+      <PersistentMiningHandler />
       <Routes>
         {/* Public routes */}
-        <Route path="/auth" element={
-          <Auth />
-        } />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/profile" element={<Auth showProfileSetup />} />
         
         {/* Protected routes */}
         <Route path="/" element={

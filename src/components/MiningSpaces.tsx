@@ -73,21 +73,25 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     // Update the space in context
     updateMiningSpace(spaceId, {
       unlocked: true,
-      expiresAt
+      expiresAt,
+      active: true, // Auto-start mining when unlocked
     });
     
     // Update local state
     setSpaces(currentSpaces => 
       currentSpaces.map(space => 
         space.id === spaceId 
-          ? { ...space, unlocked: true, timeRemaining: SPACE_AD_DURATION * 60 * 60 } 
+          ? { ...space, unlocked: true, timeRemaining: SPACE_AD_DURATION * 60 * 60, active: true } 
           : space
       )
     );
     
+    // Start the mining process automatically
+    startSpaceMining(spaceId);
+    
     toast({
       title: "Space Unlocked!",
-      description: `Mining space ${spaceId} has been unlocked for ${SPACE_AD_DURATION} hours.`,
+      description: `Mining space ${spaceId} has been unlocked for ${SPACE_AD_DURATION} hours and started automatically.`,
       duration: 3000,
     });
   };
@@ -101,7 +105,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     });
   };
 
-  // Start mining in a specific space
+  // Start mining in a specific space (automatically accrues SCoins)
   const startSpaceMining = (spaceId: number) => {
     const space = spaces.find(s => s.id === spaceId);
     if (!space || !space.unlocked) return;
@@ -149,39 +153,18 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     
     toast({
       title: "Space Mining Started",
-      description: `Mining in space ${spaceId} has begun. You'll earn ${SCOINS_PER_HOUR} scoins per hour.`,
+      description: `Mining in space ${spaceId} has begun. You'll earn ${SCOINS_PER_HOUR} scoins per hour automatically.`,
       duration: 3000,
     });
   };
 
-  // Stop mining in a specific space
-  const stopSpaceMining = (spaceId: number) => {
-    // Update in context
-    updateMiningSpace(spaceId, {
-      active: false,
-      scoinsEarned: 0
-    });
-    
-    // Update local state
-    setSpaces(currentSpaces => 
-      currentSpaces.map(space => 
-        space.id === spaceId
-          ? { ...space, active: false, accruedScoins: 0 }
-          : space
-      )
-    );
-    
-    onMiningUpdate({ 
-      isMining: false,
-      isSpace: true
-    });
-    
-    toast({
-      title: "Mining Stopped",
-      description: `Mining in space ${spaceId} has been stopped.`,
-      duration: 3000,
-    });
-  };
+  // Auto-start mining for first space if available and not active
+  useEffect(() => {
+    const firstSpace = spaces.find(s => s.id === 1);
+    if (firstSpace && !firstSpace.active) {
+      startSpaceMining(1);
+    }
+  }, []);
 
   // Update timers for spaces
   useEffect(() => {
@@ -233,7 +216,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4 text-center">
-        Watch ads to unlock mining spaces that automatically generate Scoins
+        Unlock mining spaces that automatically generate Scoins over time
       </p>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -274,35 +257,19 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                 )}
                 
                 {(space.timeRemaining > 0 || space.premium) ? (
-                  !space.active ? (
-                    <Button 
-                      size="sm" 
-                      className="mt-2 bg-amber-500 hover:bg-amber-600 text-white"
-                      onClick={() => startSpaceMining(space.id)}
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      Start Mining
-                    </Button>
-                  ) : (
-                    <div className="space-y-2 w-full">
-                      <div className="flex items-center justify-between text-xs">
-                        <span>Mining active:</span>
-                        <span className="font-medium text-green-500">✓</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span>Rate:</span>
-                        <span className="font-medium">{SCOINS_PER_HOUR} Scoins/hour</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => stopSpaceMining(space.id)}
-                      >
-                        Stop Mining
-                      </Button>
+                  <div className="space-y-2 w-full">
+                    <div className="flex items-center justify-between text-xs">
+                      <span>Status:</span>
+                      <span className="font-medium text-green-500">Mining Active</span>
                     </div>
-                  )
+                    <div className="flex items-center justify-between text-xs">
+                      <span>Rate:</span>
+                      <span className="font-medium">{SCOINS_PER_HOUR} Scoins/hour</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Mining continues even when you're away!
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-2 w-full">
                     <Button 
@@ -330,10 +297,26 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                 <Button 
                   size="sm" 
                   className="mt-2 bg-amber-500 hover:bg-amber-600 text-white"
-                  onClick={() => startSpaceMining(space.id)}
+                  onClick={() => {
+                    // First space is free and always active
+                    updateMiningSpace(1, {
+                      unlocked: true,
+                      active: true
+                    });
+                    
+                    setSpaces(currentSpaces => 
+                      currentSpaces.map(s => 
+                        s.id === 1 
+                          ? { ...s, unlocked: true, active: true } 
+                          : s
+                      )
+                    );
+                    
+                    startSpaceMining(1);
+                  }}
                 >
                   <Play className="h-4 w-4 mr-1" />
-                  Mine Scoins (Free)
+                  Free Mining Space
                 </Button>
               ) : (
                 space.id === 5 ? (
@@ -359,7 +342,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                         onClick={() => handleWatchAd(space.id)}
                       >
                         <Eye className="h-4 w-4 mr-1" />
-                        Watch Ad
+                        Watch Ad to Unlock
                       </Button>
                     </div>
                   </>
