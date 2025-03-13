@@ -24,7 +24,7 @@ export interface UserStats {
   firstName?: string;
   lastName?: string;
   username?: string;
-  religion?: string;
+  countryCode?: string;
   phoneNumber?: string;
   referralCode?: string;
 }
@@ -466,4 +466,3 @@ export const DataService = {
     return currentData;
   }
 };
-
