@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DataService, UserData, UserStats, Transaction, CryptoHolding, MiningSpace, UserAuth } from '@/lib/dataService';
-import { calculateExpRequired } from '@/lib/miningUtils';
+import { calculateExpRequired, formatFloat } from '@/lib/miningUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface CryptoContextProps {
@@ -287,7 +287,7 @@ export const CryptoProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     
     toast({
       title: "Conversion Successful",
-      description: `Converted ${scoins} Scoins to ${scrAmount.toFixed(2)} SCR`,
+      description: `Converted ${formatFloat(scoins, 2)} Scoins to ${formatFloat(scrAmount, 4)} SCR`,
       duration: 3000,
     });
   };

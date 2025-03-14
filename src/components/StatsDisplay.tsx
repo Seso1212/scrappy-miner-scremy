@@ -59,7 +59,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </div>
             <h3 className="text-sm font-medium">Scoins</h3>
           </div>
-          <p className="text-2xl font-bold">{Math.floor(scoins)}</p>
+          <p className="text-2xl font-bold">{formatFloat(scoins, 2)}</p>
           <p className="text-xs text-muted-foreground">
             Can be exchanged for SCR
           </p>

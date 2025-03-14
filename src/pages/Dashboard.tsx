@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useCrypto } from '@/contexts/CryptoContext';
-import { formatNumber } from '@/lib/miningUtils';
+import { formatNumber, formatFloat } from '@/lib/miningUtils';
 import CryptoPrice from '@/components/CryptoPrice';
 
 const Dashboard = () => {
@@ -71,7 +71,7 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardDescription>ScremyCoin</CardDescription>
             <CardTitle className="text-2xl">
-              {scrHolding ? formatNumber(scrHolding.amount) : "0"} <span className="text-sm text-scremy">SCR</span>
+              {scrHolding ? formatFloat(scrHolding.amount, 4) : "0.0000"} <span className="text-sm text-scremy">SCR</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -96,7 +96,7 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardDescription>Scoins</CardDescription>
             <CardTitle className="text-2xl">
-              {userStats.scoins} <span className="text-sm text-amber-400">Scoins</span>
+              {formatFloat(userStats.scoins, 2)} <span className="text-sm text-amber-400">Scoins</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-2">

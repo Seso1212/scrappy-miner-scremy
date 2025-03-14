@@ -5,6 +5,7 @@ import { Home, Pickaxe, BarChart3, Wallet, LayoutGrid, Menu, X, User } from 'luc
 import { Button } from '@/components/ui/button';
 import { useCrypto } from '@/contexts/CryptoContext';
 import { cn } from '@/lib/utils';
+import { formatFloat } from '@/lib/miningUtils';
 
 const Layout = () => {
   const location = useLocation();
@@ -35,7 +36,7 @@ const Layout = () => {
         
         <div className="flex items-center gap-2">
           <div className="flex items-center mr-4">
-            <span className="text-scremy font-medium">{scrBalance.toFixed(4)}</span>
+            <span className="text-scremy font-medium">{formatFloat(scrBalance, 4)}</span>
             <span className="ml-1 text-sm text-muted-foreground">SCR</span>
           </div>
           
@@ -108,7 +109,7 @@ const Layout = () => {
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Balance</p>
               <p className="font-medium">
-                <span className="text-scremy">{scrBalance.toFixed(4)}</span>
+                <span className="text-scremy">{formatFloat(scrBalance, 4)}</span>
                 <span className="ml-1 text-sm text-muted-foreground">SCR</span>
               </p>
             </div>

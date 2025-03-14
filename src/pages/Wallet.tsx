@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useCrypto } from '@/contexts/CryptoContext';
-import { formatNumber } from '@/lib/miningUtils';
+import { formatNumber, formatFloat } from '@/lib/miningUtils';
 
 const Wallet = () => {
   const { userData, addScr, convertScoinsToScr } = useCrypto();
@@ -43,7 +43,7 @@ const Wallet = () => {
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4 bg-scremy/10 p-6 rounded-lg">
             <div className="text-5xl font-bold text-scremy">
-              {formatNumber(scrBalance)} <span className="text-2xl">SCR</span>
+              {formatFloat(scrBalance, 4)} <span className="text-2xl">SCR</span>
             </div>
             <div className="text-sm text-muted-foreground">
               ≈ ${formatNumber(scrBalance * 0.15)}
@@ -71,7 +71,7 @@ const Wallet = () => {
             </Button>
             <Button variant="outline" className="flex-1" onClick={convertScoinsToScr} disabled={userStats.scoins < 10}>
               <Repeat className="mr-2 h-4 w-4" />
-              Convert {userStats.scoins} Scoins
+              Convert {formatFloat(userStats.scoins, 2)} Scoins
             </Button>
           </div>
         </CardContent>
@@ -140,7 +140,7 @@ const Wallet = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-medium">
-                        {tx.type === 'sell' ? '-' : '+'}{tx.amount.toFixed(4)} {tx.symbol}
+                        {tx.type === 'sell' ? '-' : '+'}{tx.amount.toFixed(tx.symbol === 'SCR' ? 4 : 2)} {tx.symbol}
                       </p>
                       {tx.valueUsd && (
                         <p className="text-sm text-muted-foreground">
