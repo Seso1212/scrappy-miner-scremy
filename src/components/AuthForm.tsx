@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, EyeIcon, EyeOffIcon, Mail, Lock, Github, MessageCircle } from 'lucide-react';
+import { AlertCircle, EyeIcon, EyeOffIcon, Mail, Lock, Github, MessageCircle, LogIn } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCrypto } from '@/contexts/CryptoContext';
 import { useToast } from '@/hooks/use-toast';
@@ -112,7 +112,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   };
 
   // Social login
-  const handleSocialLogin = (provider: 'github' | 'telegram') => {
+  const handleSocialLogin = (provider: 'github' | 'telegram' | 'google') => {
     try {
       // Attempt to login with the provider
       const success = socialLogin(provider);
@@ -289,22 +289,27 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-2">
             <Button 
               variant="outline" 
               className="w-full"
               onClick={() => handleSocialLogin('github')}
             >
-              <Github className="mr-2 h-4 w-4" />
-              Github
+              <Github className="h-4 w-4" />
             </Button>
             <Button 
               variant="outline" 
               className="w-full"
               onClick={() => handleSocialLogin('telegram')}
             >
-              <MessageCircle className="mr-2 h-4 w-4" />
-              Telegram
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => handleSocialLogin('google')}
+            >
+              <LogIn className="h-4 w-4" />
             </Button>
           </div>
         </CardContent>

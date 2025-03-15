@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { DataService, UserData, UserAuth } from '@/lib/dataService';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +10,7 @@ interface CryptoContextType {
   isAuthenticated: boolean; // Added for App.tsx
   registerUser: (email: string, password: string) => boolean;
   loginUser: (credentials: { email: string; password: string }) => boolean;
-  socialLogin: (provider: 'github' | 'telegram') => boolean;
+  socialLogin: (provider: 'github' | 'telegram' | 'google') => boolean;
   logoutUser: () => void;
   logout: () => void; // Alias for DeleteAccountDialog.tsx
   updateUserStats: (stats: Partial<UserStats>) => void;
@@ -101,7 +100,7 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   // Social login
-  const socialLogin = (provider: 'github' | 'telegram'): boolean => {
+  const socialLogin = (provider: 'github' | 'telegram' | 'google'): boolean => {
     try {
       const loggedInUser = DataService.socialLogin(provider);
       
@@ -300,21 +299,21 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     userData,
     userAuth,
     isLoggedIn: !!userAuth,
-    isAuthenticated: !!userAuth, // Added for App.tsx
+    isAuthenticated: !!userAuth,
     registerUser,
     loginUser,
     socialLogin,
     logoutUser,
-    logout, // Alias for DeleteAccountDialog.tsx
+    logout,
     updateUserStats,
     refreshData,
-    resetData, // Added for DeleteAccountDialog.tsx
-    extendMiningDuration, // Added for MiningCard.tsx
-    updateMiningSpace, // Added for MiningSpaces.tsx
-    addScoins, // Added for MiningSpaces.tsx
-    convertScoinsToScr, // Added for Dashboard.tsx and Wallet.tsx
-    addScr, // Added for Mining.tsx and Wallet.tsx
-    addExp // Added for Mining.tsx and Profile.tsx
+    resetData,
+    extendMiningDuration,
+    updateMiningSpace,
+    addScoins,
+    convertScoinsToScr,
+    addScr,
+    addExp
   };
 
   return (

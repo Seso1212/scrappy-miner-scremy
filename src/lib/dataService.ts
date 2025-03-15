@@ -188,6 +188,18 @@ const SOCIAL_MOCK_USERS = {
     password: '', // Not needed for OAuth
     provider: 'telegram' as AuthProvider,
     lastLogin: Date.now()
+  },
+  google: {
+    id: 'google-user-789',
+    email: 'google-user@example.com',
+    fullName: 'Google User',
+    username: 'googleuser',
+    isEmailVerified: true,
+    isPhoneVerified: false,
+    hasCompletedKyc: false,
+    password: '', // Not needed for OAuth
+    provider: 'google' as AuthProvider,
+    lastLogin: Date.now()
   }
 };
 
@@ -252,7 +264,7 @@ export const DataService = {
   },
 
   // Social login method
-  socialLogin: (provider: 'github' | 'telegram'): UserAuth | null => {
+  socialLogin: (provider: 'github' | 'telegram' | 'google'): UserAuth | null => {
     const mockUser = SOCIAL_MOCK_USERS[provider];
     
     if (!mockUser) {
