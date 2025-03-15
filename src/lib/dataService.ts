@@ -48,8 +48,6 @@ export interface MarketData {
   lastUpdated: number;
 }
 
-export type AuthProvider = 'email' | 'github' | 'telegram' | 'google';
-
 export interface UserAuth {
   id: string;
   email: string;
@@ -60,7 +58,7 @@ export interface UserAuth {
   isPhoneVerified: boolean;
   hasCompletedKyc: boolean;
   password: string;
-  provider: AuthProvider;
+  provider: 'google' | 'telegram' | 'email';
   lastLogin: number;
 }
 
@@ -163,46 +161,6 @@ const HOUR_IN_MS = 3600000;
 const MAX_MINING_DURATION = 12 * HOUR_IN_MS; // 12 hours in milliseconds
 const EXTENDED_MINING_DURATION = 24 * HOUR_IN_MS; // 24 hours in milliseconds
 
-// Social login mock users
-const SOCIAL_MOCK_USERS = {
-  github: {
-    id: 'github-user-123',
-    email: 'github-user@example.com',
-    fullName: 'GitHub User',
-    username: 'githubuser',
-    isEmailVerified: true,
-    isPhoneVerified: false,
-    hasCompletedKyc: false,
-    password: '', // Not needed for OAuth
-    provider: 'github' as AuthProvider,
-    lastLogin: Date.now()
-  },
-  telegram: {
-    id: 'telegram-user-456',
-    email: 'telegram-user@example.com',
-    fullName: 'Telegram User',
-    username: 'telegramuser',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    hasCompletedKyc: false,
-    password: '', // Not needed for OAuth
-    provider: 'telegram' as AuthProvider,
-    lastLogin: Date.now()
-  },
-  google: {
-    id: 'google-user-789',
-    email: 'google-user@example.com',
-    fullName: 'Google User',
-    username: 'googleuser',
-    isEmailVerified: true,
-    isPhoneVerified: false,
-    hasCompletedKyc: false,
-    password: '', // Not needed for OAuth
-    provider: 'google' as AuthProvider,
-    lastLogin: Date.now()
-  }
-};
-
 // Service functions
 export const DataService = {
   // Initialize data from localStorage or use defaults
@@ -263,26 +221,6 @@ export const DataService = {
     return null;
   },
 
-  // Social login method
-  socialLogin: (provider: 'github' | 'telegram' | 'google'): UserAuth | null => {
-    const mockUser = SOCIAL_MOCK_USERS[provider];
-    
-    if (!mockUser) {
-      console.error(`No mock user available for provider: ${provider}`);
-      return null;
-    }
-    
-    const user = { ...mockUser, lastLogin: Date.now() };
-    
-    DataService.saveAuth(user);
-    
-    const userData = DataService.initData();
-    userData.auth = user;
-    DataService.saveData(userData);
-    
-    return user;
-  },
-
   registerUser: (user: Omit<UserAuth, 'id' | 'lastLogin' | 'hasCompletedKyc'>): UserAuth => {
     const newUser: UserAuth = {
       ...user,
@@ -293,6 +231,7 @@ export const DataService = {
     
     DataService.saveAuth(newUser);
     
+    // Initialize user data
     const userData = DataService.initData();
     userData.auth = newUser;
     DataService.saveData(userData);
@@ -328,7 +267,7 @@ export const DataService = {
     
     const updatedData = {
       ...currentData,
-      transactions: [newTransaction, ...currentData.transactions].slice(0, 100)
+      transactions: [newTransaction, ...currentData.transactions].slice(0, 100) // Keep last 100 transactions
     };
     
     DataService.saveData(updatedData);
@@ -360,6 +299,7 @@ export const DataService = {
       });
     }
     
+    // Filter out zero balances
     holdings = holdings.filter(h => h.amount > 0);
     
     const updatedData = {
@@ -401,6 +341,7 @@ export const DataService = {
     
     const currentData = DataService.initData();
     
+    // Deduct 5 scoins for the extension
     const updatedData = {
       ...currentData,
       userStats: {
@@ -432,18 +373,24 @@ export const DataService = {
     const currentData = DataService.initData();
     const now = Date.now();
     
+    // Process last mining session if it was active
     if (currentData.userStats.lastMiningTimestamp) {
       const elapsedTime = now - currentData.userStats.lastMiningTimestamp;
       
+      // If mining was happening while app was closed
       if (elapsedTime > 0) {
-        const miningRate = 0.0001 * currentData.userStats.level;
-        const maxTime = MAX_MINING_DURATION;
+        // Calculate how much SCR was mined while away
+        // Assuming mining rate is constant based on level
+        const miningRate = 0.0001 * currentData.userStats.level; // SCR per second
+        const maxTime = MAX_MINING_DURATION; // 12 hours in ms
         const actualTime = Math.min(elapsedTime, maxTime);
         const scrMined = (actualTime / 1000) * miningRate;
         
+        // Update balance and stats
         if (scrMined > 0) {
           const currentScr = currentData.holdings.find(h => h.symbol === 'SCR')?.amount || 0;
           
+          // Update SCR holding
           const updatedHoldings = currentData.holdings.map(h => {
             if (h.symbol === 'SCR') {
               return { ...h, amount: h.amount + scrMined };
@@ -451,14 +398,16 @@ export const DataService = {
             return h;
           });
           
+          // Update mining stats
           const updatedStats = {
             ...currentData.userStats,
             activeMiningTime: currentData.userStats.activeMiningTime + (actualTime / 1000),
-            successfulMines: currentData.userStats.successfulMines + Math.floor(actualTime / 30000),
+            successfulMines: currentData.userStats.successfulMines + Math.floor(actualTime / 30000), // Assuming each block takes ~30 seconds
             totalAttempts: currentData.userStats.totalAttempts + Math.floor(actualTime / 30000),
-            lastMiningTimestamp: undefined
+            lastMiningTimestamp: undefined // Reset timestamp since we've processed it
           };
           
+          // Add transaction for the background mining
           const newTransaction: Transaction = {
             id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             type: 'mine',
@@ -469,6 +418,7 @@ export const DataService = {
             status: 'completed'
           };
           
+          // Update the user data
           const updatedData = {
             ...currentData,
             userStats: updatedStats,
@@ -482,16 +432,20 @@ export const DataService = {
       }
     }
     
+    // Process mining spaces
     const updatedSpaces = currentData.miningSpaces.map(space => {
       if (space.active && space.expiresAt) {
+        // If space is active and has an expiration
         if (space.expiresAt > now) {
+          // Calculate how many scoins were earned while away
           const elapsedSeconds = (now - (currentData.lastUpdated || now)) / 1000;
-          const scoinsPerHour = 5;
+          const scoinsPerHour = 5; // From your constants
           const scoinsPerSecond = scoinsPerHour / 3600;
           const newScoins = space.scoinsEarned + (elapsedSeconds * scoinsPerSecond);
           
           return { ...space, scoinsEarned: newScoins };
         } else {
+          // Space has expired, deactivate it
           return { ...space, active: false, expiresAt: undefined };
         }
       }

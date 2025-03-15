@@ -1,14 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Lock, Eye, Award, Gem, Plus, Star } from 'lucide-react';
+import { Clock, Play, Lock, Eye, Award, Gem, Plus } from 'lucide-react';
 import { 
   formatTime, 
   MAX_SPACE_MINING_TIME, 
   SPACE_AD_DURATION, 
   SCOINS_PER_AD,
-  SCOINS_PER_HOUR,
-  formatFloat
+  SCOINS_PER_HOUR 
 } from '@/lib/miningUtils';
 import { useToast } from "@/components/ui/use-toast";
 import { useCrypto } from '@/contexts/CryptoContext';
@@ -159,34 +158,10 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
     });
   };
 
-  // Auto-start first space if it's not active but is unlocked
+  // Auto-start mining for first space if available and not active
   useEffect(() => {
     const firstSpace = spaces.find(s => s.id === 1);
-    if (firstSpace && firstSpace.unlocked && !firstSpace.active) {
-      startSpaceMining(1);
-    }
-  }, [spaces]);
-
-  // Auto-unlock first space if it's not already unlocked (first space is free)
-  useEffect(() => {
-    const firstSpace = spaces.find(s => s.id === 1);
-    if (firstSpace && !firstSpace.unlocked) {
-      // Update in context - first space is always free
-      updateMiningSpace(1, {
-        unlocked: true,
-        active: true
-      });
-      
-      // Update local state
-      setSpaces(currentSpaces => 
-        currentSpaces.map(s => 
-          s.id === 1 
-            ? { ...s, unlocked: true, active: true } 
-            : s
-        )
-      );
-      
-      // Start mining in the first space
+    if (firstSpace && !firstSpace.active) {
       startSpaceMining(1);
     }
   }, []);
@@ -204,14 +179,14 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
             currentSpaces.map(s => 
               s.id === space.id && s.timeRemaining > 0
                 ? { ...s, timeRemaining: s.timeRemaining - 1 }
-                : s.id === space.id && s.timeRemaining <= 0 && !s.premium && s.id !== 1 // Don't expire space 1
+                : s.id === space.id && s.timeRemaining <= 0 && !s.premium
                   ? { ...s, unlocked: false, active: false, accruedScoins: 0 }
                   : s
             )
           );
           
-          // If time just expired and it's not the first space, update in context too
-          if (space.timeRemaining === 1 && space.id !== 1) {
+          // If time just expired, update in context too
+          if (space.timeRemaining === 1) {
             updateMiningSpace(space.id, {
               unlocked: false,
               active: false,
@@ -237,7 +212,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
         <h2 className="text-xl font-semibold">Mining Spaces</h2>
         <div className="flex items-center gap-2">
           <Gem className="h-4 w-4 text-amber-400" />
-          <span className="text-sm font-medium">{formatFloat(totalScoins, 2)} Scoins</span>
+          <span className="text-sm font-medium">{Math.floor(totalScoins)} Scoins</span>
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4 text-center">
@@ -263,7 +238,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
             
             {space.unlocked ? (
               <>
-                {!space.premium && space.id !== 1 && (
+                {!space.premium && (
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>
@@ -274,13 +249,6 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                   </div>
                 )}
                 
-                {space.id === 1 && (
-                  <div className="text-xs text-green-500 flex items-center gap-1">
-                    <Star className="h-3 w-3" />
-                    <span>Free Space (Never Expires)</span>
-                  </div>
-                )}
-                
                 {space.premium && (
                   <div className="text-xs text-amber-400 flex items-center gap-1">
                     <Award className="h-3 w-3" />
@@ -288,7 +256,7 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                   </div>
                 )}
                 
-                {(space.timeRemaining > 0 || space.premium || space.id === 1) ? (
+                {(space.timeRemaining > 0 || space.premium) ? (
                   <div className="space-y-2 w-full">
                     <div className="flex items-center justify-between text-xs">
                       <span>Status:</span>
@@ -325,33 +293,60 @@ const MiningSpaces: React.FC<MiningSpaceProps> = ({
                 )}
               </>
             ) : (
-              space.id === 5 ? (
+              space.id === 1 ? (
                 <Button 
                   size="sm" 
                   className="mt-2 bg-amber-500 hover:bg-amber-600 text-white"
-                  onClick={handlePremiumOffer}
+                  onClick={() => {
+                    // First space is free and always active
+                    updateMiningSpace(1, {
+                      unlocked: true,
+                      active: true
+                    });
+                    
+                    setSpaces(currentSpaces => 
+                      currentSpaces.map(s => 
+                        s.id === 1 
+                          ? { ...s, unlocked: true, active: true } 
+                          : s
+                      )
+                    );
+                    
+                    startSpaceMining(1);
+                  }}
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Premium Space
+                  <Play className="h-4 w-4 mr-1" />
+                  Free Mining Space
                 </Button>
               ) : (
-                <>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Lock className="h-3 w-3" />
-                    <span>Locked</span>
-                  </div>
-                  <div className="space-y-2 w-full mt-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => handleWatchAd(space.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Watch Ad to Unlock
-                    </Button>
-                  </div>
-                </>
+                space.id === 5 ? (
+                  <Button 
+                    size="sm" 
+                    className="mt-2 bg-amber-500 hover:bg-amber-600 text-white"
+                    onClick={handlePremiumOffer}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Premium Space
+                  </Button>
+                ) : (
+                  <>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      <span>Locked</span>
+                    </div>
+                    <div className="space-y-2 w-full mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleWatchAd(space.id)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Watch Ad to Unlock
+                      </Button>
+                    </div>
+                  </>
+                )
               )
             )}
           </div>

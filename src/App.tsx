@@ -13,7 +13,6 @@ import Wallet from "./pages/Wallet";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
-import AuthCallback from "./pages/AuthCallback";
 import Layout from "./components/Layout";
 import { useEffect, useRef } from "react";
 
@@ -99,7 +98,6 @@ const AppRoutes = () => {
         {/* Public routes */}
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/profile" element={<Auth showProfileSetup />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
         
         {/* Protected routes */}
         <Route path="/" element={
