@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Lock, Eye, Award, Gem, Plus } from 'lucide-react';
+import { Clock, Play, Lock, Eye, Award, Gem, Plus, Star } from 'lucide-react';
 import { 
   formatTime, 
   MAX_SPACE_MINING_TIME, 
