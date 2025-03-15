@@ -163,7 +163,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   };
 
   // Social login
-  const handleSocialLogin = async (provider: 'github' | 'telegram' | 'google') => {
+  const handleSocialLogin = async (provider: 'github' | 'google') => {
     try {
       setIsLoading(true);
       
@@ -187,7 +187,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
       // and return after successful auth, so we don't need to call onComplete here
       
       // For the mock functionality to work in development
-      socialLogin(provider);
+      socialLogin(provider as any);
       onComplete();
       
     } catch (error) {
@@ -195,6 +195,31 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
       toast({
         title: "Authentication Error",
         description: `An error occurred during ${provider} authentication.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Telegram login
+  const handleTelegramLogin = () => {
+    try {
+      setIsLoading(true);
+      
+      // For now, we'll use the mock implementation for Telegram
+      socialLogin('telegram' as any);
+      onComplete();
+      
+      toast({
+        title: "Demo Mode",
+        description: "Telegram login is in demo mode. In a production environment, you would need to implement the Telegram Login Widget.",
+      });
+    } catch (error) {
+      console.error('Error during Telegram login:', error);
+      toast({
+        title: "Authentication Error",
+        description: "An error occurred during Telegram authentication.",
         variant: "destructive",
       });
     } finally {
@@ -371,7 +396,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => handleSocialLogin('telegram')}
+              onClick={handleTelegramLogin}
               disabled={isLoading}
             >
               <MessageCircle className="h-4 w-4" />

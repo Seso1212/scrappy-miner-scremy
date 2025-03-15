@@ -3,6 +3,9 @@ import { DataService, UserData, UserAuth } from '@/lib/dataService';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 
+// Define the allowed social providers
+export type SocialProvider = 'github' | 'google' | 'telegram';
+
 // Define the context shape
 interface CryptoContextType {
   userData: UserData;
@@ -11,7 +14,7 @@ interface CryptoContextType {
   isAuthenticated: boolean;
   registerUser: (email: string, password: string) => boolean;
   loginUser: (credentials: { email: string; password: string }) => boolean;
-  socialLogin: (provider: 'github' | 'telegram' | 'google') => boolean;
+  socialLogin: (provider: SocialProvider) => boolean;
   logoutUser: () => void;
   logout: () => void;
   updateUserStats: (stats: Partial<UserStats>) => void;
@@ -139,7 +142,7 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
   
   // Social login - works with Supabase now
-  const socialLogin = (provider: 'github' | 'telegram' | 'google'): boolean => {
+  const socialLogin = (provider: SocialProvider): boolean => {
     try {
       // We're now handling this with Supabase OAuth, but keeping this
       // for development/fallback
