@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, EyeIcon, EyeOffIcon, Mail, Lock, Github, MessageCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCrypto } from '@/contexts/CryptoContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthFormProps {
   onComplete: () => void;
@@ -26,7 +27,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { registerUser, loginUser } = useCrypto();
+  const { registerUser, loginUser, socialLogin } = useCrypto();
+  const { toast } = useToast();
 
   // Password validation
   const validatePassword = (password: string): boolean => {
@@ -110,12 +112,32 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   };
 
   // Social login
-  const handleSocialLogin = (provider: string) => {
-    console.log(`Login with ${provider}`);
-    
-    // For demo, just log in without actual OAuth
-    loginUser({ email: 'demo@example.com', password: 'Demo123!' });
-    onComplete();
+  const handleSocialLogin = (provider: 'github' | 'telegram') => {
+    try {
+      // Attempt to login with the provider
+      const success = socialLogin(provider);
+      
+      if (success) {
+        toast({
+          title: "Login Successful",
+          description: `You've been authenticated via ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
+        });
+        onComplete();
+      } else {
+        toast({
+          title: "Login Failed",
+          description: `Unable to authenticate with ${provider}. Please try again.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error(`Error during ${provider} login:`, error);
+      toast({
+        title: "Authentication Error",
+        description: `An error occurred during ${provider} authentication.`,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
