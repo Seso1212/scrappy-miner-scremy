@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import { AlertCircle, EyeIcon, EyeOffIcon, Mail, Lock, Github, MessageCircle, Lo
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCrypto } from '@/contexts/CryptoContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface AuthFormProps {
   onComplete: () => void;
@@ -26,6 +26,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
   
   const { registerUser, loginUser, socialLogin } = useCrypto();
   const { toast } = useToast();
@@ -54,8 +55,9 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
   };
 
   // Handle form submission
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
     // Reset errors
     setErrors({});
@@ -63,73 +65,131 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
     // Basic validation
     if (!email) {
       setErrors(prev => ({ ...prev, email: 'Email is required' }));
+      setIsLoading(false);
       return;
     }
     
     if (!password) {
       setErrors(prev => ({ ...prev, password: 'Password is required' }));
+      setIsLoading(false);
       return;
     }
     
     if (password !== confirmPassword) {
       setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+      setIsLoading(false);
       return;
     }
     
     // Validate password requirements
     if (!validatePassword(password)) {
+      setIsLoading(false);
       return;
     }
     
-    // Register the user
-    const success = registerUser(email, password);
-    if (success) {
-      onComplete();
+    try {
+      // Register with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      
+      if (error) {
+        toast({
+          title: "Registration Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.user) {
+        // Call the existing registerUser for local state management
+        registerUser(email, password);
+        onComplete();
+      }
+    } catch (error) {
+      console.error('Error during registration:', error);
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred during registration.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Handle login
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setLoginError('');
     
     if (!loginEmail || !loginPassword) {
       setLoginError('Please enter both email and password');
+      setIsLoading(false);
       return;
     }
     
-    // Attempt to log in with credentials
-    const success = loginUser({
-      email: loginEmail,
-      password: loginPassword
-    });
-    
-    if (success) {
-      onComplete();
-    } else {
-      setLoginError('Invalid email or password');
+    try {
+      // Login with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+      
+      if (error) {
+        setLoginError(error.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.user) {
+        // Call the existing loginUser for local state management
+        loginUser({
+          email: loginEmail,
+          password: loginPassword
+        });
+        onComplete();
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      setLoginError('An unexpected error occurred during login.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Social login
-  const handleSocialLogin = (provider: 'github' | 'telegram' | 'google') => {
+  const handleSocialLogin = async (provider: 'github' | 'telegram' | 'google') => {
     try {
-      // Attempt to login with the provider
-      const success = socialLogin(provider);
+      setIsLoading(true);
       
-      if (success) {
-        toast({
-          title: "Login Successful",
-          description: `You've been authenticated via ${provider.charAt(0).toUpperCase() + provider.slice(1)}`,
-        });
-        onComplete();
-      } else {
+      let { data, error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin + '/auth/callback',
+        },
+      });
+      
+      if (error) {
         toast({
           title: "Login Failed",
-          description: `Unable to authenticate with ${provider}. Please try again.`,
+          description: error.message,
           variant: "destructive",
         });
+        return;
       }
+      
+      // NOTE: The user will be redirected away from the app by Supabase
+      // and return after successful auth, so we don't need to call onComplete here
+      
+      // For the mock functionality to work in development
+      socialLogin(provider);
+      onComplete();
+      
     } catch (error) {
       console.error(`Error during ${provider} login:`, error);
       toast({
@@ -137,6 +197,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
         description: `An error occurred during ${provider} authentication.`,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -200,8 +262,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
                   </div>
                 </div>
                 
-                <Button type="submit" className="w-full bg-scremy hover:bg-scremy/90">
-                  Login
+                <Button 
+                  type="submit" 
+                  className="w-full bg-scremy hover:bg-scremy/90"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Logging in..." : "Login"}
                 </Button>
               </form>
             </TabsContent>
@@ -271,8 +337,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
                   {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
                 </div>
                 
-                <Button type="submit" className="w-full bg-scremy hover:bg-scremy/90">
-                  Create Account
+                <Button 
+                  type="submit" 
+                  className="w-full bg-scremy hover:bg-scremy/90"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
             </TabsContent>
@@ -294,6 +364,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
               variant="outline" 
               className="w-full"
               onClick={() => handleSocialLogin('github')}
+              disabled={isLoading}
             >
               <Github className="h-4 w-4" />
             </Button>
@@ -301,6 +372,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
               variant="outline" 
               className="w-full"
               onClick={() => handleSocialLogin('telegram')}
+              disabled={isLoading}
             >
               <MessageCircle className="h-4 w-4" />
             </Button>
@@ -308,6 +380,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onComplete }) => {
               variant="outline" 
               className="w-full"
               onClick={() => handleSocialLogin('google')}
+              disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />
             </Button>

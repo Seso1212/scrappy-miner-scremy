@@ -1,27 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { DataService, UserData, UserAuth } from '@/lib/dataService';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 // Define the context shape
 interface CryptoContextType {
   userData: UserData;
   userAuth: UserAuth | null;
   isLoggedIn: boolean;
-  isAuthenticated: boolean; // Added for App.tsx
+  isAuthenticated: boolean;
   registerUser: (email: string, password: string) => boolean;
   loginUser: (credentials: { email: string; password: string }) => boolean;
   socialLogin: (provider: 'github' | 'telegram' | 'google') => boolean;
   logoutUser: () => void;
-  logout: () => void; // Alias for DeleteAccountDialog.tsx
+  logout: () => void;
   updateUserStats: (stats: Partial<UserStats>) => void;
   refreshData: () => void;
-  resetData: () => void; // Added for DeleteAccountDialog.tsx
-  extendMiningDuration: () => void; // Added for MiningCard.tsx
-  updateMiningSpace: (id: number, data: Partial<MiningSpace>) => void; // Added for MiningSpaces.tsx
-  addScoins: (amount: number) => void; // Added for MiningSpaces.tsx
-  convertScoinsToScr: () => void; // Added for Dashboard.tsx and Wallet.tsx
-  addScr: (amount: number) => void; // Added for Mining.tsx and Wallet.tsx
-  addExp: (amount: number) => void; // Added for Mining.tsx and Profile.tsx
+  resetData: () => void;
+  extendMiningDuration: () => void;
+  updateMiningSpace: (id: number, data: Partial<MiningSpace>) => void;
+  addScoins: (amount: number) => void;
+  convertScoinsToScr: () => void;
+  addScr: (amount: number) => void;
+  addExp: (amount: number) => void;
 }
 
 // Import these types directly from dataService
@@ -39,7 +40,7 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setUserAuth(DataService.getAuth());
   };
 
-  // Initial load
+  // Initial load and Supabase session check
   useEffect(() => {
     // Load data from localStorage on component mount
     const initialData = DataService.initData();
@@ -52,12 +53,50 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Process any pending mining from background
     const updatedData = DataService.processPendingMining();
     setUserData(updatedData);
+    
+    // Set up Supabase auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          // User signed in - update local auth
+          const supaUser = session.user;
+          
+          // Map Supabase user to your app's user format
+          const appUser: UserAuth = {
+            id: supaUser.id,
+            email: supaUser.email || '',
+            fullName: supaUser.user_metadata.full_name || '',
+            username: supaUser.user_metadata.preferred_username || '',
+            isEmailVerified: !!supaUser.email_confirmed_at,
+            isPhoneVerified: false,
+            hasCompletedKyc: false,
+            password: '',
+            provider: (supaUser.app_metadata.provider as any) || 'email',
+            lastLogin: Date.now()
+          };
+          
+          DataService.saveAuth(appUser);
+          setUserAuth(appUser);
+          refreshData();
+        } else if (event === 'SIGNED_OUT') {
+          // User signed out - clear local auth
+          DataService.logoutUser();
+          setUserAuth(null);
+          refreshData();
+        }
+      }
+    );
+    
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Register a new user
+  // Register a new user - mostly handled directly by Supabase now
   const registerUser = (email: string, password: string): boolean => {
     try {
-      // Create a new user
+      // Create a new user in local storage (for now we'll keep this as backup)
       const newUser = DataService.registerUser({
         email,
         password,
@@ -99,9 +138,11 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
   
-  // Social login
+  // Social login - works with Supabase now
   const socialLogin = (provider: 'github' | 'telegram' | 'google'): boolean => {
     try {
+      // We're now handling this with Supabase OAuth, but keeping this
+      // for development/fallback
       const loggedInUser = DataService.socialLogin(provider);
       
       if (loggedInUser) {
@@ -117,11 +158,23 @@ export const CryptoProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Logout user
-  const logoutUser = (): void => {
-    DataService.logoutUser();
-    setUserAuth(null);
-    refreshData();
+  // Logout user - now also works with Supabase
+  const logoutUser = async (): Promise<void> => {
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Local logout
+      DataService.logoutUser();
+      setUserAuth(null);
+      refreshData();
+    } catch (error) {
+      console.error('Error logging out:', error);
+      // Still perform local logout on error
+      DataService.logoutUser();
+      setUserAuth(null);
+      refreshData();
+    }
   };
 
   // Alias for logoutUser
